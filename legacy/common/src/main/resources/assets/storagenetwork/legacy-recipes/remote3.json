@@ -1,0 +1,28 @@
+{
+
+  "type": "minecraft:crafting_shaped",
+  "group": "storagenetwork",
+  "pattern": [
+    "pcp",
+    "imi",
+	"p p"
+  ],
+  "key": {
+    "c": {
+      "item": "minecraft:glowstone"
+    },
+    "i":  {
+	  "item": "minecraft:gold_ingot"
+	},
+    "m":  {
+	  "item": "storagenetwork:master"
+	},
+    "p":  {
+	  "item": "minecraft:slime_ball"
+	}
+  },
+  "result": {
+    "item": "storagenetwork:remote",
+	"data":3
+  }
+}

@@ -31,3 +31,10 @@ crash-reports/
 *.jks
 secret.properties
 .vscode
+
+# Generated legacy target/runtime state
+.unimined/
+__pycache__/
+.build-number.lock/
+*.ipr
+*.iws

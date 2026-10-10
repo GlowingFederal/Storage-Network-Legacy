@@ -1,0 +1,128 @@
+{
+  "forge_marker": 1,
+  "defaults": {
+    "model": "storagenetwork:empty"
+  },
+  "variants": {
+    "inventory": [
+      {
+        "model": "storagenetwork:ex_kabel_center"
+      }
+    ],
+    "covered": {
+      "false": {
+        "submodel": {
+          "center": {
+            "model": "storagenetwork:ex_kabel_center"
+          }
+        }
+      },
+      "true": {}
+    },
+    "down": {
+      "true": {
+        "submodel": {
+          "down": {
+            "model": "storagenetwork:ex_kabel_down"
+          }
+        }
+      },
+      "false": {}
+    },
+    "up": {
+      "true": {
+        "submodel": {
+          "up": {
+            "model": "storagenetwork:ex_kabel_up"
+          }
+        }
+      },
+      "false": {}
+    },
+    "north": {
+      "true": {
+        "submodel": {
+          "north": {
+            "model": "storagenetwork:ex_kabel_north"
+          }
+        }
+      },
+      "false": {}
+    },
+    "south": {
+      "true": {
+        "submodel": {
+          "south": {
+            "model": "storagenetwork:ex_kabel_south"
+          }
+        }
+      },
+      "false": {}
+    },
+    "west": {
+      "true": {
+        "submodel": {
+          "west": {
+            "model": "storagenetwork:ex_kabel_west"
+          }
+        }
+      },
+      "false": {}
+    },
+    "east": {
+      "true": {
+        "submodel": {
+          "east": {
+            "model": "storagenetwork:ex_kabel_east"
+          }
+        }
+      },
+      "false": {}
+    },
+    "target": {
+      "0": {
+        "submodel": {
+          "target": {
+            "model": "storagenetwork:ex_kabel_target_down"
+          }
+        }
+      },
+      "1": {
+        "submodel": {
+          "target": {
+            "model": "storagenetwork:ex_kabel_target_up"
+          }
+        }
+      },
+      "2": {
+        "submodel": {
+          "target": {
+            "model": "storagenetwork:ex_kabel_target_north"
+          }
+        }
+      },
+      "3": {
+        "submodel": {
+          "target": {
+            "model": "storagenetwork:ex_kabel_target_south"
+          }
+        }
+      },
+      "4": {
+        "submodel": {
+          "target": {
+            "model": "storagenetwork:ex_kabel_target_west"
+          }
+        }
+      },
+      "5": {
+        "submodel": {
+          "target": {
+            "model": "storagenetwork:ex_kabel_target_east"
+          }
+        }
+      },
+      "6": {}
+    }
+  }
+}

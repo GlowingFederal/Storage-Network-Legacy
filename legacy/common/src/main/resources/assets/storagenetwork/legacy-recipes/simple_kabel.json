@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " k ",
+    "kkk",
+    " k "
+  ],
+  "key": {
+    "k": {
+      "item": "storagenetwork:kabel"
+    }
+  },
+  "result": {
+    "item": "storagenetwork:simple_kabel",
+    "count": 3
+  }
+}

@@ -1,0 +1,22 @@
+{
+
+  "type": "minecraft:crafting_shaped",
+  "group": "storagenetwork",
+  "pattern": [
+    " k ",
+    "kpk",
+	" k "
+  ],
+  "key": {
+    "k": {
+      "item": "storagenetwork:kabel"
+    },
+    "p":  {
+	  "item": "minecraft:hopper"
+	}
+  },
+  "result": {
+    "item": "storagenetwork:im_kabel",
+	 "count": 4
+  }
+}

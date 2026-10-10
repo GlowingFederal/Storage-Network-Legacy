@@ -1,0 +1,30 @@
+{
+  "textures": {
+    "particle": "storagenetwork:blocks/kabel_n"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        0,
+        0,
+        0
+      ],
+      "faces": {
+        "up": {
+          "texture": "storagenetwork:blocks/kabel_n",
+          "uv": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    }
+  ]
+}

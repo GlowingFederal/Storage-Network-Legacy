@@ -1,0 +1,72 @@
+{
+  "textures": {
+    "all": "storagenetwork:blocks/storage_kabel_n",
+    "particle": "storagenetwork:blocks/storage_kabel_n"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        5,
+        5
+      ],
+      "to": [
+        5,
+        11,
+        11
+      ],
+      "faces": {
+        "down": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "up": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "north": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "south": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "west": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "east": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        3,
+        3
+      ],
+      "to": [
+        1,
+        13,
+        13
+      ],
+      "faces": {
+        "down": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "up": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "north": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "south": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "west": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        },
+        "east": {
+          "texture": "storagenetwork:blocks/storage_kabel_n"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+plugins { id 'java'; id 'xyz.wagyourtail.unimined' version '1.4.1' }
+ext.repositoryRoot = file('../..')
+ext.minecraftTarget = '1.8.9'
+ext.loaderTarget = 'forge'
+ext.loaderVersion = '1.8.9-11.15.1.2318-1.8.9'
+ext.javaTarget = 8
+apply from: '../../build-logic/version.gradle'
+apply from: '../../build-logic/shared.gradle'
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+def runtimeJars = [:]
+def runtimeCopies = [:]
+['client', 'server'].each { side ->
+    runtimeJars[side] = objects.fileCollection()
+    runtimeCopies[side] = tasks.register("prepare${side.capitalize()}ForgeRuntime", Copy) {
+        from provider {
+            tasks.named("run${side.capitalize()}").get()
+            runtimeJars[side]
+        }
+        into layout.buildDirectory.dir("forge189-runtime/${side}")
+        rename { 'minecraft-forge.jar' }
+        doFirst {
+            if (runtimeJars[side].files.size() != 1) {
+                throw new GradleException('Expected one Forge 1.8.9 runtime Minecraft JAR')
+            }
+        }
+        if (side == 'server') doLast {
+            // Unimined merges client and server Forge metadata. Its client TweakClass
+            // is rediscovered after FMLServerTweaker has already installed security.
+            // Remove only that client launch attribute from the generated server copy.
+            def runtime = new File(destinationDir, 'minecraft-forge.jar')
+            def replacement = new File(destinationDir, 'minecraft-forge.tmp')
+            new java.util.jar.JarFile(runtime).withCloseable { input ->
+                def manifest = input.manifest
+                manifest.mainAttributes.remove(new java.util.jar.Attributes.Name('TweakClass'))
+                new java.util.jar.JarOutputStream(new FileOutputStream(replacement), manifest).withCloseable { output ->
+                    input.entries().each { entry ->
+                        if (!entry.name.equalsIgnoreCase('META-INF/MANIFEST.MF')) {
+                            output.putNextEntry(new java.util.jar.JarEntry(entry.name))
+                            if (!entry.directory) input.getInputStream(entry).withCloseable { stream -> stream.transferTo(output) }
+                            output.closeEntry()
+                        }
+                    }
+                }
+            }
+            java.nio.file.Files.move(replacement.toPath(), runtime.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+    tasks.matching { it.name == "preRun${side.capitalize()}" }.configureEach {
+        dependsOn runtimeCopies[side]
+    }
+}
+
+unimined.minecraft {
+    version '1.8.9'
+    // Forge's transformer supplies SRG mappings; retain the stable MCP name layer.
+    mappings { mcp('stable', '22-1.8.9') }
+    runs {
+        all {
+            def side = name == 'runClient' ? 'client' : 'server'
+            def originalClasspath = classpath
+            def minecraftJar = originalClasspath.filter {
+                it.name.startsWith('forge-1.8.9-') && it.name.endsWith('.jar')
+            }
+            runtimeJars[side].from(minecraftJar)
+            // Compiler annotations have no runtime role in the Forge launch classpath.
+            def compilerAnnotations = originalClasspath.filter { it.name.startsWith('annotations-') }
+            classpath = originalClasspath - minecraftJar - compilerAnnotations + files(
+                    layout.buildDirectory.file("forge189-runtime/${side}/minecraft-forge.jar"))
+        }
+        config('client') { javaVersion = JavaVersion.VERSION_1_8 }
+        config('server') { javaVersion = JavaVersion.VERSION_1_8; standardInput = System.in }
+    }
+    minecraftForge { loader '11.15.1.2318-1.8.9' }
+    
+}
+jar.finalizedBy 'remapJar'

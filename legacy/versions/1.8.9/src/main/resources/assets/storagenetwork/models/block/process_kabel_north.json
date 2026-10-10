@@ -1,0 +1,40 @@
+{
+  "textures": {
+    "all": "storagenetwork:blocks/process_kabel_n",
+    "particle": "storagenetwork:blocks/process_kabel_n"
+  },
+  "elements": [
+    {
+      "from": [
+        5,
+        5,
+        0
+      ],
+      "to": [
+        11,
+        11,
+        5
+      ],
+      "faces": {
+        "down": {
+          "texture": "storagenetwork:blocks/process_kabel_n"
+        },
+        "up": {
+          "texture": "storagenetwork:blocks/process_kabel_n"
+        },
+        "north": {
+          "texture": "storagenetwork:blocks/process_kabel_n"
+        },
+        "south": {
+          "texture": "storagenetwork:blocks/process_kabel_n"
+        },
+        "west": {
+          "texture": "storagenetwork:blocks/process_kabel_n"
+        },
+        "east": {
+          "texture": "storagenetwork:blocks/process_kabel_n"
+        }
+      }
+    }
+  ]
+}

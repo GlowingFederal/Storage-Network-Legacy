@@ -1,0 +1,118 @@
+{
+  "mod_id": "storagenetwork",
+  "base_package": "mrriegel.storagenetwork.legacy",
+  "display_name": "Simple Storage Network",
+  "archive_pattern": "{mod_id}-{full_version}+mc{mc}-{loader}.jar",
+  "version_class": "{package_path}/BuildVersion.class",
+  "required_classes": [
+    "{package_path}/StorageNetwork.class",
+    "{package_path}/TileMaster.class",
+    "{package_path}/NativeInventory.class",
+    "{package_path}/NetworkContainer.class",
+    "{package_path}/NetworkGui.class",
+    "{package_path}/Protocol.class",
+    "{package_path}/api/LegacyApi.class",
+    "{package_path}/Processing.class",
+    "{package_path}/RemoteItem.class"
+  ],
+  "required_shared_classes": [
+    "{package_path}/core/Position.class",
+    "{package_path}/core/InventoryAccess.class",
+    "{package_path}/core/Transfers.class",
+    "{package_path}/core/Upgrades.class"
+  ],
+  "class_roots": [
+    "{package_path}/"
+  ],
+  "resource_roots": [
+    "assets/{mod_id}/"
+  ],
+  "required_assets": [
+    "LICENSE.txt",
+    "assets/{mod_id}/textures/blocks/master.png",
+    "assets/{mod_id}/textures/blocks/storage_kabel_n.png",
+    "assets/{mod_id}/textures/items/upgrade_5.png",
+    "assets/{mod_id}/textures/gui/request_full.png",
+    "assets/{mod_id}/lang/en_US.lang",
+    "assets/{mod_id}/legacy-recipes/process_kabel.json"
+  ],
+  "metadata_profiles": {
+    "legacy": {
+      "path": "mcmod.info",
+      "json_values": {
+        "0.modid": "{mod_id}",
+        "0.name": "{display_name}",
+        "0.version": "{full_version}",
+        "0.mcversion": "{mc}"
+      }
+    }
+  },
+  "targets": {
+    "1.6.4": {
+      "metadata_profile": "legacy",
+      "remapping": {
+        "required": true,
+        "checks": [
+          {
+            "class": "{package_path}/NativeInventory.class",
+            "present": [
+              "func_70301_a"
+            ],
+            "absent": [
+              "getStackInSlot"
+            ]
+          }
+        ]
+      },
+      "json_checks": []
+    },
+    "1.7.10": {
+      "metadata_profile": "legacy",
+      "remapping": {
+        "required": true,
+        "checks": [
+          {
+            "class": "{package_path}/NativeInventory.class",
+            "present": [
+              "func_70301_a"
+            ],
+            "absent": [
+              "getStackInSlot"
+            ]
+          }
+        ]
+      },
+      "json_checks": []
+    },
+    "1.8.9": {
+      "metadata_profile": "legacy",
+      "remapping": {
+        "required": true,
+        "checks": [
+          {
+            "class": "{package_path}/NativeInventory.class",
+            "present": [
+              "func_70301_a"
+            ],
+            "absent": [
+              "getStackInSlot"
+            ]
+          }
+        ]
+      },
+      "json_checks": [
+        {
+          "path": "assets/{mod_id}/blockstates/storage_kabel.json",
+          "values": {
+            "forge_marker": 1
+          }
+        }
+      ],
+      "required_assets": [
+        "assets/{mod_id}/blockstates/storage_kabel.json",
+        "assets/{mod_id}/models/block/storage_kabel_center.json",
+        "assets/{mod_id}/models/item/remote_1.json"
+      ]
+    }
+  }
+}

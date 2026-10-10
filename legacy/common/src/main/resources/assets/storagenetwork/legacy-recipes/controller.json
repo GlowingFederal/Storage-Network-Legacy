@@ -1,0 +1,24 @@
+{
+
+  "type": "minecraft:crafting_shaped",
+  "group": "storagenetwork",
+  "pattern": [
+    "dkd",
+    "kck",
+	"dkd"
+  ],
+  "key": {
+    "k": {
+      "item": "storagenetwork:process_kabel"
+    },
+    "d":  {
+	  "item": "minecraft:lapis_block"
+	},
+    "c":  {
+	  "item": "minecraft:obsidian"
+	}
+  },
+  "result": {
+    "item": "storagenetwork:controller"
+  }
+}

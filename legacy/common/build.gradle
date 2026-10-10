@@ -1,0 +1,4 @@
+plugins { id 'java-library' }
+group = 'mrriegel.storagenetwork'
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+compileJava { options.release = 7; options.encoding = 'UTF-8'; options.compilerArgs.add('-Xlint:-options') }
