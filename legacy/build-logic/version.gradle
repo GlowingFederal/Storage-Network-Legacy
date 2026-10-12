@@ -36,11 +36,11 @@ if ((versionText =~ /(?m)^\s*build_number\s*[:=]/).count != 1 ||
 def oldNumber = numberText.toLong()
 ext.modVersion = semantic
 ext.buildNumber = oldNumber
-ext.fullVersion = "${semantic}.${oldNumber}"
+ext.fullVersion = semantic
 ext.displayVersion = fullVersion
 version = fullVersion
 // Task actions read this detached state, updated by the existing allocator before execution.
-ext.modVersionState = [fullVersion: fullVersion]
+ext.modVersionState = [fullVersion: fullVersion, buildNumber: oldNumber]
 
 def lockDirectory = new File(project.ext.repositoryRoot, '.build-number.lock')
 def ownsLock = false
@@ -51,9 +51,10 @@ if (coordinated != project.hasProperty('releaseModVersion')) {
 }
 def applyNumber = { long n ->
     project.ext.buildNumber = n
-    project.ext.fullVersion = "${semantic}.${n}"
+    project.ext.fullVersion = semantic
     project.ext.displayVersion = project.ext.fullVersion
     project.ext.modVersionState.fullVersion = project.ext.fullVersion
+    project.ext.modVersionState.buildNumber = n
     project.version = project.ext.fullVersion
     def name = archiveName(project.version.toString())
     def separate = project.tasks.findByName('remapJar') ?: (project.minecraftTarget in ['1.7.10', '1.18.2', '1.20.1'] ? project.tasks.findByName('reobfJar') : null)
@@ -100,11 +101,14 @@ gradle.buildFinished { result ->
             def archive = new java.util.jar.JarFile(output)
             try {
                 if (archive.manifest.mainAttributes.getValue('Implementation-Version') != project.fullVersion) {
-                    throw new GradleException('Production manifest version does not match the allocated build number')
+                    throw new GradleException('Production manifest version does not match mod_version')
+                }
+                if (archive.manifest.mainAttributes.getValue('Implementation-Build') != project.buildNumber.toString()) {
+                    throw new GradleException('Production manifest build does not match the allocated build number')
                 }
                 def constant = archive.getJarEntry(versionClassPath)
                 if (constant == null || !new String(archive.getInputStream(constant).bytes, 'ISO-8859-1').contains(project.fullVersion)) {
-                    throw new GradleException('Production version constant does not match the allocated build number')
+                    throw new GradleException('Production version constant does not match mod_version')
                 }
             } finally { archive.close() }
             if (!Arrays.equals(originalBytes, Files.readAllBytes(versionFile.toPath()))) {

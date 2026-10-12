@@ -49,7 +49,14 @@ public final class CableRenderer implements ISimpleBlockRenderingHandler {
                 int nx = x + mrriegel.storagenetwork.legacy.core.Position.DX[side], ny = y + mrriegel.storagenetwork.legacy.core.Position.DY[side], nz = z + mrriegel.storagenetwork.legacy.core.Position.DZ[side];
                 boolean target = node != null && node.direction == side;
                 if (!target && !(world.getBlockTileEntity(nx, ny, nz) instanceof TileNode)) continue;
-                renderer.setRenderBounds(side == 4 ? 0 : .3125, side == 0 ? 0 : .3125, side == 2 ? 0 : .3125, side == 5 ? 1 : .6875, side == 1 ? 1 : .6875, side == 3 ? 1 : .6875);
+                // Arms abut the center and collar instead of overlapping their faces.
+                double outerMin = target ? .0625 : 0, outerMax = target ? .9375 : 1;
+                renderer.setRenderBounds(side == 4 ? outerMin : side == 5 ? .6875 : .3125,
+                        side == 0 ? outerMin : side == 1 ? .6875 : .3125,
+                        side == 2 ? outerMin : side == 3 ? .6875 : .3125,
+                        side == 5 ? outerMax : side == 4 ? .3125 : .6875,
+                        side == 1 ? outerMax : side == 0 ? .3125 : .6875,
+                        side == 3 ? outerMax : side == 2 ? .3125 : .6875);
                 renderer.renderStandardBlock(block, x, y, z);
                 if (target) {
                     renderer.setRenderBounds(side == 4 ? 0 : side == 5 ? .9375 : .1875, side == 0 ? 0 : side == 1 ? .9375 : .1875, side == 2 ? 0 : side == 3 ? .9375 : .1875,

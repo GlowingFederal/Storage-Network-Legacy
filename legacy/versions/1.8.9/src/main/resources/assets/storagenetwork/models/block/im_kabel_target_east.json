@@ -17,22 +17,22 @@
       ],
       "faces": {
         "down": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "up": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "north": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "south": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "west": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "east": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         }
       }
     },
@@ -49,22 +49,22 @@
       ],
       "faces": {
         "down": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "up": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "north": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "south": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "west": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         },
         "east": {
-          "texture": "storagenetwork:blocks/im_kabel_n"
+          "texture": "#all"
         }
       }
     }

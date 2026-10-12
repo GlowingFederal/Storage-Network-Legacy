@@ -158,7 +158,7 @@ def check_metadata(text, metadata, label):
             raise RuntimeError(f"{label} has inconsistent [{check['table']}] fields: {check['fields']}")
 
 
-def verify(mc, full_version, directory=None):
+def verify(mc, full_version, directory=None, build_number=None):
     config = verification_settings(mc, full_version)
     filename = config["archive_pattern"]
     if Path(filename).name != filename or not filename.endswith(".jar") or filename.endswith("-dev.jar"):
@@ -171,19 +171,38 @@ def verify(mc, full_version, directory=None):
         if len(names) != len(set(names)):
             raise RuntimeError(f"{jar.name} contains duplicate archive entries")
         required_classes = config["required_classes"] + config["required_shared_classes"] + [config["version_class"]]
-        required = required_classes + config["required_assets"] + [config["metadata"]["path"], "META-INF/MANIFEST.MF"]
+        required = required_classes + config["required_assets"] + config["cable_textures"] + [config["metadata"]["path"], "META-INF/MANIFEST.MF"]
         required += [check["path"] for check in config["json_checks"]]
         required += [check["class"] for check in config["remapping"]["checks"]]
         for path in required:
             if path not in names:
                 raise RuntimeError(f"{jar.name} is missing {path}")
+        for path in config["cable_textures"]:
+            image = archive.read(path)
+            if image[:8] != b"\x89PNG\r\n\x1a\n" or len(image) < 29 or struct.unpack_from(">II", image, 16) != (32, 32):
+                raise RuntimeError(f"{jar.name} requires an atlas-friendly 32x32 cable texture: {path}")
+            if image[25] != 2:
+                raise RuntimeError(f"{jar.name} requires an opaque RGB cable texture: {path}")
         classes = {}
         for path in names:
             if path.endswith(".json") and any(path.startswith(root) for root in config["resource_roots"]):
                 resource = archive.read(path).decode("utf-8")
                 if "${" in resource:
                     raise RuntimeError(f"{jar.name} contains unexpanded resource tokens: {path}")
-                json.loads(resource)
+                model = json.loads(resource)
+                if mc == "1.8.9" and "/models/block/" in path and "elements" in model:
+                    bindings = model.get("textures", {})
+                    for element in model["elements"]:
+                        for face in element.get("faces", {}).values():
+                            reference = face.get("texture", "")
+                            # 1.8.9 treats face paths as alias names, even without '#'.
+                            if not reference.startswith("#") or reference[1:] not in bindings:
+                                raise RuntimeError(f"{jar.name}: unresolved model face texture {reference!r} in {path}")
+                            texture = bindings[reference[1:]]
+                            if texture.startswith(config["mod_id"] + ":"):
+                                asset = "assets/" + texture.replace(":", "/textures/", 1) + ".png"
+                                if asset not in names:
+                                    raise RuntimeError(f"{jar.name}: missing model texture {asset} in {path}")
             if (path.endswith(".jar") or
                     (path.endswith(".class") and not any(path.startswith(root) for root in config["class_roots"]))):
                 raise RuntimeError(f"{jar.name} contains an unexpected bundled dependency: {path}")
@@ -209,6 +228,9 @@ def verify(mc, full_version, directory=None):
         for field, value in (("Implementation-Version", full_version), ("Implementation-Title", config["display_name"])):
             if f"{field}: {value}" not in manifest.splitlines():
                 raise RuntimeError(f"{jar.name} has inconsistent manifest {field}")
+        builds = re.findall(r"(?m)^Implementation-Build: ([0-9]+)$", manifest)
+        if len(builds) != 1 or int(builds[0]) < 1 or (build_number is not None and int(builds[0]) != build_number):
+            raise RuntimeError(f"{jar.name} has inconsistent manifest Implementation-Build")
     print(f"Verified {jar.name} (Java {config['target_java']})", flush=True)
     return jar
 
@@ -239,18 +261,18 @@ def main():
         return run(ROOT / "versions" / args.target, tasks, warning_mode=args.warning_mode)
     original, semantic, number = read_version()
     if args.action == "plan":
-        print(json.dumps({"mod_version": semantic, "build_number": number, "full_version": f"{semantic}.{number}"}))
+        print(json.dumps({"mod_version": semantic, "build_number": number, "full_version": semantic}))
         return 0
     if args.action == "verify":
         if not args.target or not args.full_version:
             parser.error("verify requires target and --full-version")
-        verify(args.target, args.full_version, args.artifacts)
+        verify(args.target, args.full_version, args.artifacts, args.number)
         return 0
     if args.action == "persist":
         if args.number != number or args.artifacts is None:
             parser.error("persist requires --number equal to build_number and --artifacts containing all three jars")
         for mc in VERSIONS:
-            verify(mc, f"{semantic}.{args.number}", args.artifacts)
+            verify(mc, semantic, args.artifacts, args.number)
         persist_version(original, args.number + 1)
         return 0
     if args.action == "test":
@@ -264,7 +286,7 @@ def main():
         status = run(ROOT / "versions" / args.target, ["build"], warning_mode=args.warning_mode)
         if status == 0:
             _, semantic, number = read_version()
-            verify(args.target, f"{semantic}.{number - 1}")
+            verify(args.target, semantic, build_number=number - 1)
         return status
     lock = ROOT / ".build-number.lock"
     try:
@@ -284,7 +306,7 @@ def main():
                 failures.append(mc)
             else:
                 try:
-                    verify(mc, f"{semantic}.{number}")
+                    verify(mc, semantic, build_number=number)
                 except (RuntimeError, zipfile.BadZipFile) as error:
                     print(error, file=sys.stderr)
                     failures.append(mc)

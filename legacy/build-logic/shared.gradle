@@ -29,8 +29,10 @@ processResources {
     from(new File(repositoryRoot, 'LICENSE.txt'))
 }
 jar {
+    inputs.property('buildNumber', { modVersionState.buildNumber })
     manifest { attributes 'Implementation-Title': 'Simple Storage Network', 'Implementation-Version': project.fullVersion }
     preserveFileTimestamps = false
     reproducibleFileOrder = true
 }
-jar.doFirst { manifest.attributes('Implementation-Version': modVersionState.fullVersion) }
+jar.doFirst { manifest.attributes('Implementation-Version': modVersionState.fullVersion,
+        'Implementation-Build': modVersionState.buildNumber.toString()) }

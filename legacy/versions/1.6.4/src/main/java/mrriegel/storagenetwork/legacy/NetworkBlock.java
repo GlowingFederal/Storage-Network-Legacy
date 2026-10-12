@@ -20,7 +20,11 @@ public class NetworkBlock extends BlockContainer {
         setUnlocalizedName("storagenetwork:" + StorageNetwork.NAMES[kind]);
         setTextureName("storagenetwork:" + StorageNetwork.NAMES[kind] + (kind >= 3 && kind <= 8 ? "_n" : ""));
         setHardness(kind >= 3 && kind <= 8 ? 1.4F : 2.0F); setCreativeTab(StorageNetwork.TAB);
-        if (cable()) setBlockBounds(.3125F, .3125F, .3125F, .6875F, .6875F, .6875F);
+        if (cable()) {
+            // Block's constructor sees kind == 0 and caches full-cube lighting.
+            opaqueCubeLookup[blockID] = false; setLightOpacity(0); useNeighborBrightness[blockID] = true;
+            setBlockBounds(.3125F, .3125F, .3125F, .6875F, .6875F, .6875F);
+        }
     }
     public boolean cable() { return kind >= 3 && kind <= 8; }
     @Override public TileEntity createNewTileEntity(World world) {

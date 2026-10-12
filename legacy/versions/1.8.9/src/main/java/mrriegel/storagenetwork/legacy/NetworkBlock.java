@@ -30,7 +30,11 @@ public class NetworkBlock extends BlockContainer {
         IBlockState state = blockState.getBaseState();
         if (cable()) { state = state.withProperty(TARGET, 6).withProperty(COVERED, false); for (PropertyBool face : CONNECTED) state = state.withProperty(face, false); }
         setDefaultState(state);
-        if (cable()) setBlockBounds(.3125F, .3125F, .3125F, .6875F, .6875F, .6875F);
+        if (cable()) {
+            // Block's constructor sees kind == 0 and caches full-cube lighting.
+            fullBlock = false; setLightOpacity(0); useNeighborBrightness = true;
+            setBlockBounds(.3125F, .3125F, .3125F, .6875F, .6875F, .6875F);
+        }
     }
     public boolean cable() { return kind >= 3 && kind <= 8; }
     @Override public TileEntity createNewTileEntity(World world, int metadata) { TileNode node = kind == 0 ? new TileMaster() : new TileNode(); node.whitelist = kind == 5 || kind == 6; return node; }

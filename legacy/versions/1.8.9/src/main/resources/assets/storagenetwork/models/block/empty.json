@@ -16,7 +16,7 @@
       ],
       "faces": {
         "up": {
-          "texture": "storagenetwork:blocks/kabel_n",
+          "texture": "#particle",
           "uv": [
             0,
             0,

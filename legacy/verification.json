@@ -2,7 +2,7 @@
   "mod_id": "storagenetwork",
   "base_package": "mrriegel.storagenetwork.legacy",
   "display_name": "Simple Storage Network",
-  "archive_pattern": "{mod_id}-{full_version}+mc{mc}-{loader}.jar",
+  "archive_pattern": "SimpleStorageNetworkLegacy-{mc}-{full_version}.jar",
   "version_class": "{package_path}/BuildVersion.class",
   "required_classes": [
     "{package_path}/StorageNetwork.class",
@@ -27,10 +27,18 @@
   "resource_roots": [
     "assets/{mod_id}/"
   ],
+  "cable_textures": [
+    "assets/{mod_id}/textures/blocks/kabel_n.png",
+    "assets/{mod_id}/textures/blocks/storage_kabel_n.png",
+    "assets/{mod_id}/textures/blocks/storage_kabel_plain_n.png",
+    "assets/{mod_id}/textures/blocks/im_kabel_n.png",
+    "assets/{mod_id}/textures/blocks/ex_kabel_n.png",
+    "assets/{mod_id}/textures/blocks/process_kabel_n.png",
+    "assets/{mod_id}/textures/blocks/simple_kabel_n.png"
+  ],
   "required_assets": [
     "LICENSE.txt",
     "assets/{mod_id}/textures/blocks/master.png",
-    "assets/{mod_id}/textures/blocks/storage_kabel_n.png",
     "assets/{mod_id}/textures/items/upgrade_5.png",
     "assets/{mod_id}/textures/gui/request_full.png",
     "assets/{mod_id}/lang/en_US.lang",
