@@ -26,3 +26,7 @@
 
 - Trim 1.6.4 and 1.7.10 connection arms to meet the center cube instead of including it; trim inventory-facing stems to meet their collars. This removes coplanar overlapping exterior faces that cause depth fighting at corners and branches.
 - Preserve the combined outer shape, connection rules, UV mapping, native lighting, inventory rendering, and facade path. The 1.8.9 model path is unchanged.
+
+2026-10-13 14:45 — Fix full-network shift-click crashes
+
+- Fix terminal shift-clicks crashing when storage is full, disconnected, or rejects the item in Minecraft 1.6.4, 1.7.10, and 1.8.9. Failed inserts leave the source stack untouched; partial inserts retain the remainder, and successful inserts keep their normal behavior.

@@ -112,7 +112,7 @@ public final class NetworkContainer extends Container {
     }
     @Override public ItemStack transferStackInSlot(EntityPlayer player, int slotIndex) {
         if (player.worldObj.isRemote || slotIndex < 0 || slotIndex >= inventorySlots.size() || !canInteractWith(player)) return null;
-        Slot slot = (Slot) inventorySlots.get(slotIndex); if (!slot.getHasStack() || !slot.canTakeStack(player)) return null;
+        Slot slot = (Slot) inventorySlots.get(slotIndex); if (slot == null || !slot.getHasStack() || !slot.canTakeStack(player)) return null;
         if (crafting && slotIndex == 0) {
             // Native SlotCrafting owns container-item remainders and Forge crafting hooks.
             int crafted = 0;
@@ -126,7 +126,8 @@ public final class NetworkContainer extends Container {
             }
             refresh(); return null;
         }
-        ItemStack stack = slot.getStack(); ItemStack original = stack.copy();
+        ItemStack stack = slot.getStack(); if (Stacks.INSTANCE.empty(stack)) return null;
+        ItemStack original = stack.copy();
         int ownSlots = inventorySlots.size() - 36;
         if (cable) {
             if (slotIndex < ownSlots) { if (!mergeItemStack(stack, ownSlots, inventorySlots.size(), true)) return null; }
@@ -136,7 +137,11 @@ public final class NetworkContainer extends Container {
         }
         else {
             TileMaster master = master(); if (master == null) return null;
-            slot.putStack(master.insert(stack, false, null));
+            ItemStack remainder = master.insert(original, false, null);
+            // Native slotClick retries successful transfers while the source still has this item.
+            // Returning success without progress recurses forever when the network is full.
+            if (Stacks.INSTANCE.count(remainder) >= original.stackSize) return null;
+            slot.putStack(Stacks.INSTANCE.empty(remainder) ? null : remainder);
         }
         slot.onSlotChanged(); if (node != null) node.markDirty(); refresh(); return original;
     }
