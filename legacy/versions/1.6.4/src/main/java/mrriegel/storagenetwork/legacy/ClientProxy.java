@@ -11,6 +11,7 @@ import cpw.mods.fml.relauncher.Side;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
+import mrriegel.storagenetwork.legacy.core.TerminalLayout;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
@@ -44,6 +45,6 @@ public final class ClientProxy extends CommonProxy implements ITickHandler {
     public String getLabel() { return "SSN client updates"; }
     @Override public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
         if (id == 1 && x >= 0 && x < 36) return new NetworkGui(new NetworkContainer(player, null, x));
-        TileEntity tile = world.getBlockTileEntity(x, y, z); return tile instanceof TileNode ? new NetworkGui(new NetworkContainer(player, (TileNode) tile, -1)) : null;
+        TileEntity tile = world.getBlockTileEntity(x, y, z); return id == 0 && tile instanceof TileNode && TerminalLayout.hasBlockGui(((TileNode) tile).kind()) ? new NetworkGui(new NetworkContainer(player, (TileNode) tile, -1)) : null;
     }
 }

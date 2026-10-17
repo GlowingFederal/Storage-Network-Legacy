@@ -2,6 +2,7 @@ package mrriegel.storagenetwork.legacy;
 
 import net.minecraftforge.fml.common.network.IGuiHandler;
 import net.minecraft.entity.player.EntityPlayer;
+import mrriegel.storagenetwork.legacy.core.TerminalLayout;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
@@ -17,7 +18,7 @@ public class CommonProxy implements IGuiHandler {
             return new NetworkContainer(player, null, x);
         }
         TileEntity tile = world.getTileEntity(new net.minecraft.util.BlockPos(x, y, z));
-        if (!(tile instanceof TileNode) || !((TileNode) tile).isUseableByPlayer(player)) return null;
+        if (id != 0 || !(tile instanceof TileNode) || !TerminalLayout.hasBlockGui(((TileNode) tile).kind()) || !((TileNode) tile).isUseableByPlayer(player)) return null;
         return new NetworkContainer(player, (TileNode) tile, -1);
     }
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) { return null; }

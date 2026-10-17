@@ -30,3 +30,12 @@
 2026-10-13 14:45 — Fix full-network shift-click crashes
 
 - Fix terminal shift-clicks crashing when storage is full, disconnected, or rejects the item in Minecraft 1.6.4, 1.7.10, and 1.8.9. Failed inserts leave the source stack untouched; partial inserts retain the remainder, and successful inserts keep their normal behavior.
+
+2026-10-17 02:31 — Rebuild legacy terminal layout and browser state
+
+- Replace the conflicting full-screen inventory artwork with distinct vanilla-style storage, crafting, and player-inventory panels across 1.6.4, 1.7.10, and 1.8.9. Use shared named layout regions for permanent slot positions, rendering, browser hit detection, and controls. Draw empty crafting and result slot recesses explicitly.
+- Replace item pages and navigation buttons with a bounded virtual browser, row-based mouse-wheel scrolling over the browser, and a draggable vertical scrollbar. Preserve offsets during catalog updates, clamp after removals, and reset when search text changes. Retain one focused search field between screens during the current game session, with right-click clearing and Tab/Enter focus release.
+- Keep client crafting contents independent of tile-description NBT and synchronize them through native container slots. Refresh results when another viewer changes the saved server matrix; batch Clear grid recipe updates and preserve transfer remainders through the existing inventory/drop fallback.
+- Establish native inventory item lighting, white color, and depth state around virtual item rendering; restore render state afterward and use untinted recessed item backgrounds. Fit aggregate quantity labels within their item cells and include exact counts in tooltips.
+- Disconnect ordinary Storage Link Cables from activation and both GUI handlers, and remove their access control/action. Preserve saved link settings and network functionality; import/export/processing configuration remains available.
+- Add deterministic per-target terminal regression checks to the existing build verification lifecycle, covering large catalogs, fixed real slots, client matrix isolation, viewport limits, native snapshot counts, and full/partial transfer remainders.

@@ -1,6 +1,7 @@
 package mrriegel.storagenetwork.legacy;
 
 import java.util.List;
+import mrriegel.storagenetwork.legacy.core.TerminalLayout;
 import mrriegel.storagenetwork.legacy.core.Position;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockContainer;
@@ -48,9 +49,9 @@ public class NetworkBlock extends BlockContainer {
         Platform.sync(node);
     }
     @Override public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side, float hx, float hy, float hz) {
-        if (world.isRemote) return true; TileEntity tile = world.getBlockTileEntity(x, y, z); if (!(tile instanceof TileNode)) return false;
+        if (world.isRemote) return player.isSneaking() && cable() || TerminalLayout.hasBlockGui(kind); TileEntity tile = world.getBlockTileEntity(x, y, z); if (!(tile instanceof TileNode)) return false;
         if (player.isSneaking() && cable()) { ((TileNode) tile).rotate(); return true; }
-        if (kind == 0 || kind == 3 || kind == 8) return false;
+        if (!TerminalLayout.hasBlockGui(kind)) return false;
         player.openGui(StorageNetwork.instance, 0, world, x, y, z); return true;
     }
     @Override public void onBlockClicked(World world, int x, int y, int z, EntityPlayer player) {

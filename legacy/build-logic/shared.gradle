@@ -23,6 +23,7 @@ tasks.register('generateVersion') {
     }
 }
 compileJava.dependsOn 'generateVersion'
+apply from: new File(repositoryRoot, 'build-logic/gui-verification.gradle')
 processResources {
     inputs.property('fullVersion', { modVersionState.fullVersion })
     filesMatching('mcmod.info') { expand(fullVersion: modVersionState.fullVersion, minecraftTarget: minecraftTarget) }

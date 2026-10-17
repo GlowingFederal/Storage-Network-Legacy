@@ -1,0 +1,25 @@
+// Explicit native-class regression harness; never packaged in production archives.
+sourceSets.create('terminalRegression') {
+    java.srcDir new File(repositoryRoot, 'validation/src')
+    compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+}
+// Unimined attaches Minecraft to compileJava's task classpath, not the source-set configuration.
+def nativeClasspath = providers.provider { tasks.named('compileJava').get().classpath }
+tasks.named('compileTerminalRegressionJava') {
+    classpath = (classpath + files(nativeClasspath)).filter { !it.name.startsWith('jabel-') }
+    options.release.set(8)
+    options.annotationProcessorPath = files()
+    // These Java 8 fixture sources need no production annotation processors (including Jabel).
+    options.compilerArgs.add('-proc:none')
+}
+tasks.register('verifyTerminal', JavaExec) {
+    group = 'verification'
+    description = 'Run deterministic terminal layout, large-catalog, synchronization and transfer checks.'
+    dependsOn 'terminalRegressionClasses'
+    classpath = sourceSets.terminalRegression.runtimeClasspath + files(nativeClasspath)
+    mainClass = 'mrriegel.storagenetwork.legacy.TerminalRegressionLauncher'
+    args minecraftTarget
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(8) }
+}
+tasks.named('check') { dependsOn 'verifyTerminal' }

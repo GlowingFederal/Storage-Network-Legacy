@@ -3,6 +3,7 @@ package mrriegel.storagenetwork.legacy;
 import java.util.ArrayList;
 import java.util.List;
 import mrriegel.storagenetwork.legacy.core.Transfers;
+import mrriegel.storagenetwork.legacy.core.TerminalLayout;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
@@ -22,9 +23,10 @@ public final class NetworkContainer extends Container {
     public final int remoteSlot;
     private final ItemStack remoteIdentity;
     public final boolean cable, controller, crafting;
+    public final TerminalLayout layout;
     public final InventoryCrafting matrix;
     private final InventoryCraftResult result = new InventoryCraftResult();
-    private final ItemStack[] recipeMemory = new ItemStack[9];
+    private final ItemStack[] recipeMemory = new ItemStack[9], lastMatrix = new ItemStack[9];
     public List<ItemStack> catalog = new ArrayList<ItemStack>();
     public int revision;
     private NBTTagCompound lastState;
@@ -34,13 +36,16 @@ public final class NetworkContainer extends Container {
     public NetworkContainer(EntityPlayer player, TileNode node, int remoteSlot) {
         this.player = player; this.node = node; this.remoteSlot = remoteSlot;
         remoteIdentity = remoteSlot >= 0 ? player.inventory.getStackInSlot(remoteSlot) : null;
-        cable = remoteSlot < 0 && node != null && node.kind() >= 4 && node.kind() <= 7;
+        cable = remoteSlot < 0 && node != null && node.kind() >= 5 && node.kind() <= 7;
         controller = remoteSlot < 0 && node != null && node.kind() == 9;
         crafting = !cable && !controller && (remoteSlot < 0 ? node != null && node.kind() == 1 : remoteIdentity != null && remoteIdentity.getItemDamage() != 3);
-        matrix = new SharedMatrix(this, remoteSlot < 0 && node != null ? node.matrix : new ItemStack[9]);
+        layout = new TerminalLayout(crafting);
+        // The server retains the saved table matrix. Client slots have one authority:
+        // vanilla container packets, never tile-description NBT or browser snapshots.
+        matrix = new SharedMatrix(this, !player.worldObj.isRemote && remoteSlot < 0 && node != null ? node.matrix : new ItemStack[9]);
         if (crafting) {
-            addSlotToContainer(new CraftSlot(player, matrix, result, 0, 80, 137));
-            for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) addSlotToContainer(new Slot(matrix, row * 3 + col, 8 + col * 18, 110 + row * 18));
+            addSlotToContainer(new CraftSlot(player, matrix, result, 0, TerminalLayout.RESULT.x + 1, TerminalLayout.RESULT.y + 1));
+            for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) addSlotToContainer(new Slot(matrix, row * 3 + col, TerminalLayout.CRAFT_GRID.x + 1 + col * TerminalLayout.CELL, TerminalLayout.CRAFT_GRID.y + 1 + row * TerminalLayout.CELL));
         }
         if (cable && (node.kind() == 5 || node.kind() == 6)) {
             for (int i = 0; i < 4; i++) addSlotToContainer(new Slot(node, i, 98 + i * 18, 6) {
@@ -48,8 +53,8 @@ public final class NetworkContainer extends Container {
                 @Override public boolean isItemValid(ItemStack stack) { return stack != null && stack.getItem() == StorageNetwork.upgrade; }
             });
         }
-        for (int row = 0; row < 3; row++) for (int col = 0; col < 9; col++) bindPlayerSlot(row * 9 + col + 9, 8 + col * 18, 174 + row * 18);
-        for (int col = 0; col < 9; col++) bindPlayerSlot(col, 8 + col * 18, 232);
+        for (int row = 0; row < 3; row++) for (int col = 0; col < 9; col++) bindPlayerSlot(row * 9 + col + 9, (cable || controller ? 8 : layout.playerX + 1) + col * TerminalLayout.CELL, (cable || controller ? 174 : TerminalLayout.PLAYER_Y + 1) + row * TerminalLayout.CELL);
+        for (int col = 0; col < 9; col++) bindPlayerSlot(col, (cable || controller ? 8 : layout.playerX + 1) + col * TerminalLayout.CELL, cable || controller ? 232 : TerminalLayout.HOTBAR_Y + 1);
         onCraftMatrixChanged(matrix);
     }
     private void bindPlayerSlot(final int slot, int x, int y) {
@@ -68,6 +73,15 @@ public final class NetworkContainer extends Container {
     public void refresh() { force = true; }
     public void resendCatalog() { force = true; resetCatalog = true; }
     @Override public void detectAndSendChanges() {
+        // Another viewer can change the saved matrix without calling this container.
+        if (crafting && !player.worldObj.isRemote) {
+            boolean changed = false;
+            for (int i = 0; i < 9; i++) if (!ItemStack.areItemStacksEqual(lastMatrix[i], matrix.getStackInSlot(i))) { changed = true; break; }
+            if (changed) {
+                for (int i = 0; i < 9; i++) lastMatrix[i] = Stacks.INSTANCE.copy(matrix.getStackInSlot(i), Stacks.INSTANCE.count(matrix.getStackInSlot(i)));
+                onCraftMatrixChanged(matrix);
+            }
+        }
         super.detectAndSendChanges();
         if (player.worldObj.isRemote || !(player instanceof EntityPlayerMP) || !canInteractWith(player)) return;
         long now = player.worldObj.getTotalWorldTime(); if (!force && now - lastUpdate < 10) return;
@@ -92,10 +106,13 @@ public final class NetworkContainer extends Container {
                 if (!resetCatalog && i < sent.size() && Stacks.INSTANCE.same(stack, sent.get(i)) && stack.stackSize == sent.get(i).stackSize) continue;
                 NBTTagCompound item = new NBTTagCompound(); stack.writeToNBT(item); item.setInteger("SSNCount", stack.stackSize); item.setInteger("index", i); changes.appendTag(item);
             }
-            if (!resetCatalog && current.size() == sent.size() && changes.tagCount() == 0) { force = false; return; }
+            if (!force && !resetCatalog && current.size() == sent.size() && changes.tagCount() == 0) { force = false; return; }
             catalog = current; sent = new ArrayList<ItemStack>(current); revision++;
             update.setTag("changes", changes); update.setInteger("size", current.size()); update.setInteger("revision", revision);
             update.setBoolean("reset", resetCatalog);
+            ItemStack remote = remoteSlot >= 0 ? player.inventory.getStackInSlot(remoteSlot) : null;
+            update.setInteger("sort", node != null ? node.sort : remote != null && remote.hasTagCompound() ? remote.getTagCompound().getInteger("sort") : 1);
+            update.setBoolean("down", node != null ? node.downwards : remote != null && remote.hasTagCompound() && remote.getTagCompound().getBoolean("down"));
         }
         if (cable || controller) { if (!force && update.equals(lastState)) return; lastState = (NBTTagCompound) update.copy(); }
         force = false; resetCatalog = false; Protocol.sendTo(update, (EntityPlayerMP) player);
@@ -167,13 +184,17 @@ public final class NetworkContainer extends Container {
         Protocol.syncCursor((EntityPlayerMP) player); refresh();
     }
     public void clearRecipe() {
-        if (!crafting) return;
-        for (int slot = 0; slot < 9; slot++) {
-            ItemStack stack = matrix.getStackInSlot(slot); if (Stacks.INSTANCE.empty(stack)) continue;
-            TileMaster master = master(); ItemStack remainder = master == null ? stack : master.insert(stack, false, null);
-            if (remainder != null) { player.inventory.addItemStackToInventory(remainder); if (remainder.stackSize > 0) player.dropPlayerItemWithRandomChoice(remainder, false); }
-            matrix.setInventorySlotContents(slot, null);
-        }
+        if (!crafting || player.worldObj.isRemote) return;
+        batching = true;
+        try {
+            for (int slot = 0; slot < 9; slot++) {
+                ItemStack stack = matrix.getStackInSlot(slot); if (Stacks.INSTANCE.empty(stack)) continue;
+                // Transfer copies: player inventory insertion may mutate its argument.
+                TileMaster master = master(); ItemStack remainder = master == null ? stack.copy() : master.insert(stack.copy(), false, null);
+                if (remainder != null) { player.inventory.addItemStackToInventory(remainder); if (remainder.stackSize > 0) player.dropPlayerItemWithRandomChoice(remainder, false); }
+                matrix.setInventorySlotContents(slot, null);
+            }
+        } finally { batching = false; onCraftMatrixChanged(matrix); }
         refresh();
     }
     @Override public void onContainerClosed(EntityPlayer player) { if (remoteSlot >= 0 && !player.worldObj.isRemote) clearRecipe(); super.onContainerClosed(player); if (node != null && !player.worldObj.isRemote) node.onInventoryChanged(); }

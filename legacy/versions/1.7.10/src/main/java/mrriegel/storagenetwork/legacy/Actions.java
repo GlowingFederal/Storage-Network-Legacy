@@ -7,7 +7,7 @@ import net.minecraft.item.ItemStack;
 /** All actions resolve their authority from the live server container. No client ItemStacks. */
 public final class Actions {
     public static final int REQUEST = 0, INSERT = 1, REFRESH = 2, FILTER = 3, WHITELIST = 4, META = 5, ORE = 6,
-        NBT = 7, PRIORITY = 8, WAY = 9, OP_LIMIT = 10, OP_STACK = 11, OP_SMALLER = 12, IMPORT_FILTER = 13,
+        NBT = 7, PRIORITY = 8, OP_LIMIT = 10, OP_STACK = 11, OP_SMALLER = 12, IMPORT_FILTER = 13,
         PROC_INPUT = 14, PROC_OUTPUT = 15, PROC_ALWAYS = 16, PROC_COUNT = 17, PROC_RESTART = 18,
         SORT = 19, DOWN = 20, CLEAR = 21, OPEN_REMOTE = 22;
     private Actions() {}
@@ -64,7 +64,6 @@ public final class Actions {
                 case ORE: node.ores = !node.ores; break;
                 case NBT: node.nbt = !node.nbt; break;
                 case PRIORITY: node.priority = (int) Math.max(-1000000L, Math.min(1000000L, (long) node.priority + (b < 0 ? -1 : 1))); break;
-                case WAY: node.way = node.way == 1 ? 2 : 1; break;
                 case OP_LIMIT: node.operationLimit = Math.max(0, a); break;
                 case OP_STACK: node.operationStack = Stacks.INSTANCE.copy(player.inventory.getItemStack(), 1); break;
                 case OP_SMALLER: node.operationSmaller = !node.operationSmaller; break;
@@ -80,7 +79,7 @@ public final class Actions {
                 case PROC_RESTART: node.processStatus = 2; node.processIndex = 0; node.processRemaining = 0; break;
                 default: break;
             }
-            Platform.sync(node); TileMaster master = node.master(); if (master != null && (action == PRIORITY || action == WAY)) master.refresh();
+            Platform.sync(node); TileMaster master = node.master(); if (master != null && action == PRIORITY) master.refresh();
         }
         if (action == REFRESH) container.resendCatalog();
         container.refresh(); container.detectAndSendChanges();

@@ -1,6 +1,7 @@
 package mrriegel.storagenetwork.legacy;
 
 import java.util.List;
+import mrriegel.storagenetwork.legacy.core.TerminalLayout;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.material.Material;
@@ -62,9 +63,9 @@ public class NetworkBlock extends BlockContainer {
         Platform.sync(node);
     }
     @Override public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumFacing side, float hx, float hy, float hz) {
-        if (world.isRemote) return true; TileEntity tile = world.getTileEntity(pos); if (!(tile instanceof TileNode)) return false;
+        if (world.isRemote) return player.isSneaking() && cable() || TerminalLayout.hasBlockGui(kind); TileEntity tile = world.getTileEntity(pos); if (!(tile instanceof TileNode)) return false;
         if (player.isSneaking() && cable()) { ((TileNode) tile).rotate(); return true; }
-        if (kind == 0 || kind == 3 || kind == 8) return false; player.openGui(StorageNetwork.instance, 0, world, pos.getX(), pos.getY(), pos.getZ()); return true;
+        if (!TerminalLayout.hasBlockGui(kind)) return false; player.openGui(StorageNetwork.instance, 0, world, pos.getX(), pos.getY(), pos.getZ()); return true;
     }
     @Override public void onBlockClicked(World world, BlockPos pos, EntityPlayer player) {
         if (world.isRemote || !player.isSneaking() || !cable() || !player.canPlayerEdit(pos, EnumFacing.UP, player.getHeldItem())) return;
