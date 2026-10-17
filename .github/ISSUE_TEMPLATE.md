@@ -1,4 +1,6 @@
-Minecraft version & Mod Version:
+Simple Storage Network Legacy version:
+
+Minecraft version (1.6.4, 1.7.10, or 1.8.9) and Forge version:
 
 
 Single player or Server:

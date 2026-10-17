@@ -1,6 +1,0 @@
-{
-  "parent": "block/cube_all",
-  "textures": {
-    "all": "storagenetwork:blocks/process_kabel_n"
-  }
-}
