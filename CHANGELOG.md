@@ -46,3 +46,11 @@
 - Remove the obsolete 1.12.2 source/resources, ForgeGradle 2.3 build and wrapper, dependencies, release/setup scripts, update manifest, sample configuration, and fork landing page. Preserve upstream MIT notices and attribution.
 - Replace the README with legacy-specific installation, support, build, and layout instructions; retain detailed controls, configuration, compatibility, and plugin API documentation in docs/usage.md.
 - Add aggregate and per-target verification tasks that include the existing native regression checks, wire root build/check to the maintained targets, and update CI and ignore rules for the multiversion layout. Preserve pinned tooling, production names, and coordinated version allocation.
+
+
+2026-10-18 13:41 — Synchronize crafting results and add optional NEI transfer
+
+- Send the server-computed crafting output through native result-slot packets on 1.6.4, 1.7.10, and 1.8.9. Vanilla player listeners exclude SlotCrafting from incremental updates, so server-only recipe calculation previously left the client preview empty. Preserve native crafting, remaining items, shared table matrices, and the existing virtual browser/layout.
+- Register optional client-side NEI crafting overlays with the actual nine input coordinates, including GTNH NEI on 1.7.10. Delegate ingredient selection and filling to NEI's native transfer handler after returning old inputs to physical player inventory through ordinary server-validated window clicks; do not extract remote catalog ingredients. Reject noncrafting screens, off-grid recipes, occupied cursors, and recipes that could consume the bound remote. Stop safely when the player inventory cannot accept old inputs.
+- Keep NEI absent-server support and avoid compile/runtime dependencies. Disable GTNH NEI's separate automatic craft loop for these server-controlled crafting containers; normal recipe filling and manual/Shift-click crafting remain available.
+- Extend the existing native terminal regressions with actual result-packet capture/replay, shaped/shapeless preview invalidation and consumption, and all nine NEI destination mappings.

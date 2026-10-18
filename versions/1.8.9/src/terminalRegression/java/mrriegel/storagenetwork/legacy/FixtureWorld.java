@@ -16,4 +16,10 @@ public final class FixtureWorld extends WorldServer {
     @Override public int getHeight() { return 256; }
     @Override public TileEntity getTileEntity(net.minecraft.util.BlockPos pos) { return tiles.get(new Position(0, pos.getX(), pos.getY(), pos.getZ())); }
     @Override public net.minecraft.block.state.IBlockState getBlockState(net.minecraft.util.BlockPos pos) { return (getTileEntity(pos) instanceof TileEntityChest ? net.minecraft.init.Blocks.chest : net.minecraft.init.Blocks.air).getDefaultState(); }
+    /** Captures native slot packets without opening a connection. Allocated by the existing harness. */
+    static final class ResultPackets extends net.minecraft.network.NetHandlerPlayServer {
+        java.util.List<Object> packets;
+        ResultPackets() { super(null, null, null); }
+        @Override public void sendPacket(net.minecraft.network.Packet packet) { packets.add(packet); }
+    }
 }

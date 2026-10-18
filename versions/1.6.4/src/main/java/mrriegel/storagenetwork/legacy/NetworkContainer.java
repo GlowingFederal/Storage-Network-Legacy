@@ -16,6 +16,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.CraftingManager;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.network.packet.Packet103SetSlot;
 
 public final class NetworkContainer extends Container {
     public final EntityPlayer player;
@@ -120,6 +121,11 @@ public final class NetworkContainer extends Container {
     @Override public void onCraftMatrixChanged(IInventory inventory) {
         if (batching || !crafting || player.worldObj.isRemote) return;
         result.setInventorySlotContents(0, CraftingManager.getInstance().findMatchingRecipe(matrix, player.worldObj));
+        // EntityPlayerMP.sendSlotContents deliberately skips SlotCrafting. Unlike a
+        // vanilla workbench, this client does not recompute recipes: send the real result.
+        // Opening sends a full inventory after the window ID and listener are installed.
+        if (player instanceof EntityPlayerMP && player.openContainer == this)
+            ((EntityPlayerMP) player).playerNetServerHandler.sendPacketToPlayer(new Packet103SetSlot(windowId, 0, result.getStackInSlot(0)));
     }
     @Override public ItemStack slotClick(int slot, int button, int mode, EntityPlayer player) {
         if (!player.worldObj.isRemote && !canInteractWith(player)) return null;

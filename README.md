@@ -4,7 +4,7 @@ A maintained recreation/backport of Simple Storage Network for **Minecraft 1.6.4
 
 Connect existing chests and modded inventories to a Network Master, then search, store, request, and craft items through terminals or bound remotes. Import/export cables automate transfers; processing cables and the Network Controller manage machine batches. Includes facades, filters, priorities, six upgrades, and inventory deduplication for repeated links and double chests.
 
-Install the production JAR matching your Minecraft version on both client and server. Only Minecraft and Forge are required. Files ending in `-dev.jar` are development artifacts. These versions do not convert 1.12.2 worlds or support its capability-based plugins and optional integrations.
+Install the production JAR matching your Minecraft version on both client and server. Only Minecraft and Forge are required. Files ending in `-dev.jar` are development artifacts. These versions do not convert 1.12.2 worlds or load its capability-based plugins. Optional NEI crafting transfer uses ingredients from the player inventory, including GTNH NEI on 1.7.10.
 
 See [usage and configuration](docs/usage.md) for controls, upgrades, compatibility differences, numeric IDs on 1.6.4, and the legacy inventory-provider API. Forge creates `config/storagenetwork.cfg`; preserve configured numeric IDs when updating existing 1.6.4 saves.
 

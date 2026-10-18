@@ -42,6 +42,7 @@ public final class NetworkGui extends GuiContainer {
     private boolean browser() { return !container.cable && !container.controller; }
     @Override public void initGui() {
         String text = search == null ? retainedSearch : search.getText();
+        NEIIntegration.register();
         super.initGui(); Keyboard.enableRepeatEvents(true); buttonList.clear(); dragGrab = -1;
         if (browser()) {
             Rect bounds = TerminalLayout.SEARCH;

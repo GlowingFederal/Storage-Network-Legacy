@@ -37,7 +37,7 @@ public final class TerminalRegression {
             Class.forName("net.minecraft.stats.StatList").getMethod("nopInit").invoke(null);
             item = (Item) Item.class.getField("stick").get(null);
         }
-        layout(); viewport(); containers(); transfers(); topology(); snapshots();
+        layout(); viewport(); containers(); craftingResults(); transfers(); topology(); snapshots();
         System.out.println("TERMINAL_REGRESSION_PASSED: " + checks + " checks (headless native classes; no live multiplayer/render acceptance)");
     }
     private static void check(boolean value, String message) { checks++; if (!value) throw new AssertionError(message); }
@@ -104,6 +104,63 @@ public final class TerminalRegression {
         NetworkContainer inventory = new NetworkContainer(player, new FixtureNode(2), -1);
         check(!inventory.crafting && inventory.inventorySlots.size() == 36, "inventory-only fixed slots");
         check(((Slot) container.inventorySlots.get(10)).xDisplayPosition == container.layout.playerX + 1, "player coordinates from shared layout");
+    }
+    private static void craftingResults() throws Exception {
+        EntityPlayerMP serverPlayer = player(false), clientPlayer = player(true);
+        FixtureNode node = new FixtureNode(1);
+        NetworkContainer server = new NetworkContainer(serverPlayer, node, -1);
+        NetworkContainer client = new NetworkContainer(clientPlayer, new FixtureNode(1), -1);
+        FixtureWorld.ResultPackets connection = allocate(FixtureWorld.ResultPackets.class);
+        connection.packets = new ArrayList<Object>(); serverPlayer.playerNetServerHandler = connection;
+        server.windowId = client.windowId = 37; serverPlayer.openContainer = server;
+        java.util.List recipes = net.minecraft.item.crafting.CraftingManager.getInstance().getRecipeList();
+        ItemStack[] inputs = new ItemStack[9];
+        for (int i = 0; i < 9; i++) inputs[i] = new ItemStack(item, 1);
+        Object shaped = new net.minecraft.item.crafting.ShapedRecipes(3, 3, inputs, stack(901, 2));
+        Object shapeless = new net.minecraft.item.crafting.ShapelessRecipes(stack(902, 1), java.util.Arrays.asList(new ItemStack(item, 1)));
+        recipes.add(0, shaped); recipes.add(0, shapeless);
+        try {
+            for (int i = 0; i < 9; i++) server.matrix.setInventorySlotContents(i, new ItemStack(item, 2));
+            assertResultPacket(connection, client, stack(901, 2), "shaped 3x3 preview");
+            // Input packets must never recompute or erase the authoritative result on the client.
+            for (int i = 1; i <= 9; i++) client.putStackInSlot(i, new ItemStack(item, 2));
+            check(ItemStack.areItemStacksEqual(client.getSlot(0).getStack(), stack(901, 2)), "input packet cannot erase synchronized preview");
+            server.matrix.decrStackSize(8, 1);
+            assertResultPacket(connection, client, stack(901, 2), "consumption retains same output");
+            server.matrix.decrStackSize(8, 1);
+            assertResultPacket(connection, client, null, "removal invalidates preview");
+            for (int i = 1; i < 9; i++) server.matrix.setInventorySlotContents(i, null);
+            assertResultPacket(connection, client, stack(902, 1), "shapeless preview");
+            server.matrix.decrStackSize(0, 2);
+            assertResultPacket(connection, client, null, "consumed shapeless clears preview");
+            NetworkContainer inventory = new NetworkContainer(clientPlayer, new FixtureNode(2), -1);
+            for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) {
+                Slot mapped = NEIIntegration.craftingSlot(client, 25 + col * 18, 6 + row * 18);
+                check(mapped == client.getSlot(1 + row * 3 + col) && mapped.inventory == client.matrix, "NEI maps only native grid cells");
+                check(NEIIntegration.craftingSlot(inventory, 25 + col * 18, 6 + row * 18) == null, "NEI rejects noncrafting screen");
+            }
+            check(NEIIntegration.craftingSlot(client, 119, 24) == null, "NEI excludes result");
+            check(NEIIntegration.craftingSlot(client, 26, 6) == null && NEIIntegration.craftingSlot(client, 7, 6) == null, "NEI rejects off-grid coordinates");
+            check(client.inventorySlots.size() == 46, "NEI keeps virtual catalog out of real slots");
+        } finally { recipes.remove(shaped); recipes.remove(shapeless); }
+    }
+    private static void assertResultPacket(FixtureWorld.ResultPackets connection, NetworkContainer client, ItemStack expected, String label) throws Exception {
+        check(!connection.packets.isEmpty(), label + " sent packet");
+        Object packet = connection.packets.get(connection.packets.size() - 1);
+        int window, slot; ItemStack actual;
+        try {
+            window = ((Number) packet.getClass().getMethod("func_149175_c").invoke(packet)).intValue();
+            slot = ((Number) packet.getClass().getMethod("func_149173_d").invoke(packet)).intValue();
+            actual = (ItemStack) packet.getClass().getMethod("func_149174_e").invoke(packet);
+        } catch (NoSuchMethodException minecraft164) {
+            window = packet.getClass().getField("windowId").getInt(packet);
+            slot = packet.getClass().getField("itemSlot").getInt(packet);
+            actual = (ItemStack) packet.getClass().getField("myItemStack").get(packet);
+        }
+        check(window == 37 && slot == 0 && ItemStack.areItemStacksEqual(actual, expected), label + " authoritative window/slot/stack");
+        client.putStackInSlot(slot, actual);
+        check(ItemStack.areItemStacksEqual(client.getSlot(0).getStack(), expected), label + " visible inventory receives packet");
+        connection.packets.clear();
     }
     private static void transfers() throws Exception {
         FixtureChest left = new FixtureChest(), right = new FixtureChest();
