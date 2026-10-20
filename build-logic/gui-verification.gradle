@@ -18,6 +18,11 @@ tasks.register('verifyTerminal', JavaExec) {
     description = 'Run deterministic terminal layout, large-catalog, synchronization and transfer checks.'
     dependsOn 'terminalRegressionClasses'
     classpath = sourceSets.terminalRegression.runtimeClasspath + files(nativeClasspath)
+    // Optional real NEI/CCC jars for integration checks; never production dependencies.
+    if (project.hasProperty('neiRegressionClasspath')) {
+        classpath += files(project.property('neiRegressionClasspath').toString().split(java.util.regex.Pattern.quote(File.pathSeparator)))
+        systemProperty 'ssn.neiRegression', 'true'
+    }
     mainClass = 'mrriegel.storagenetwork.legacy.TerminalRegressionLauncher'
     args minecraftTarget
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(8) }

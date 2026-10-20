@@ -65,8 +65,8 @@ public final class NEIIntegration implements InvocationHandler {
             if (name.equals("hashCode")) return System.identityHashCode(proxy);
             return "SSN crafting overlay";
         }
-        // GTNH's optional automatic craft loop assumes client-predicted shift crafting.
-        // SSN owns shift crafting on the server; expose recipe filling, not that loop.
+        // Expose recipe filling; keep GTNH's separate automatic craft loop disabled.
+        // Players explicitly craft through the terminal's native result-slot clicks.
         if (name.equals("craft") || name.equals("canCraft")) return false;
         if (args != null && args.length >= 3 && args[0] instanceof GuiContainer) {
             GuiContainer gui = (GuiContainer) args[0];

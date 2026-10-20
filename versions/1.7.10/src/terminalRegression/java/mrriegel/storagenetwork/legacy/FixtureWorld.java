@@ -12,6 +12,7 @@ public final class FixtureWorld extends WorldServer {
     Map<Position, TileEntity> tiles;
     IChunkProvider chunks;
     FixtureWorld() { super(null, null, null, 0, null, null); }
+    @Override public long getTotalWorldTime() { return 0L; }
     @Override public IChunkProvider getChunkProvider() { return chunks; }
     @Override public int getHeight() { return 256; }
     @Override public TileEntity getTileEntity(int x, int y, int z) { return tiles.get(new Position(0, x, y, z)); }
@@ -20,7 +21,8 @@ public final class FixtureWorld extends WorldServer {
     /** Captures native slot packets without opening a connection. Allocated by the existing harness. */
     static final class ResultPackets extends net.minecraft.network.NetHandlerPlayServer {
         java.util.List<Object> packets;
+        Runnable afterSend;
         ResultPackets() { super(null, null, null); }
-        @Override public void sendPacket(net.minecraft.network.Packet packet) { packets.add(packet); }
+        @Override public void sendPacket(net.minecraft.network.Packet packet) { packets.add(packet); if (afterSend != null) afterSend.run(); }
     }
 }

@@ -37,7 +37,7 @@ public final class TerminalRegression {
             Class.forName("net.minecraft.stats.StatList").getMethod("nopInit").invoke(null);
             item = (Item) Item.class.getField("stick").get(null);
         }
-        layout(); viewport(); containers(); craftingResults(); transfers(); topology(); snapshots();
+        layout(); viewport(); containers(); craftingResults(); craftingLifecycle(); clickTransactions(); transfers(); topology(); snapshots();
         System.out.println("TERMINAL_REGRESSION_PASSED: " + checks + " checks (headless native classes; no live multiplayer/render acceptance)");
     }
     private static void check(boolean value, String message) { checks++; if (!value) throw new AssertionError(message); }
@@ -99,7 +99,8 @@ public final class TerminalRegression {
             }
         }
         ItemStack synchronizedInput = stack(7, 23); container.matrix.setInventorySlotContents(0, synchronizedInput);
-        node.matrix[0] = stack(8, 1); TileNode.readStacks(new NBTTagCompound(), "matrix", node.matrix);
+        NBTTagCompound tileUpdate = new NBTTagCompound();
+        TileNode.writeStacks(tileUpdate, "matrix", new ItemStack[] {stack(8, 1)}); node.readFromNBT(tileUpdate);
         check(container.matrix.getStackInSlot(0) == synchronizedInput, "tile NBT cannot erase client container matrix");
         NetworkContainer inventory = new NetworkContainer(player, new FixtureNode(2), -1);
         check(!inventory.crafting && inventory.inventorySlots.size() == 36, "inventory-only fixed slots");
@@ -113,6 +114,7 @@ public final class TerminalRegression {
         FixtureWorld.ResultPackets connection = allocate(FixtureWorld.ResultPackets.class);
         connection.packets = new ArrayList<Object>(); serverPlayer.playerNetServerHandler = connection;
         server.windowId = client.windowId = 37; serverPlayer.openContainer = server;
+        listen(server, serverPlayer); connection.packets.clear();
         java.util.List recipes = net.minecraft.item.crafting.CraftingManager.getInstance().getRecipeList();
         ItemStack[] inputs = new ItemStack[9];
         for (int i = 0; i < 9; i++) inputs[i] = new ItemStack(item, 1);
@@ -121,18 +123,18 @@ public final class TerminalRegression {
         recipes.add(0, shaped); recipes.add(0, shapeless);
         try {
             for (int i = 0; i < 9; i++) server.matrix.setInventorySlotContents(i, new ItemStack(item, 2));
-            assertResultPacket(connection, client, stack(901, 2), "shaped 3x3 preview");
-            // Input packets must never recompute or erase the authoritative result on the client.
+            assertNativePreview(server, connection, client, stack(901, 2), "shaped 3x3 preview");
+            // Replaying unchanged inputs must retain the same locally computed preview.
             for (int i = 1; i <= 9; i++) client.putStackInSlot(i, new ItemStack(item, 2));
             check(ItemStack.areItemStacksEqual(client.getSlot(0).getStack(), stack(901, 2)), "input packet cannot erase synchronized preview");
             server.matrix.decrStackSize(8, 1);
-            assertResultPacket(connection, client, stack(901, 2), "consumption retains same output");
+            assertNativePreview(server, connection, client, stack(901, 2), "consumption retains same output");
             server.matrix.decrStackSize(8, 1);
-            assertResultPacket(connection, client, null, "removal invalidates preview");
+            assertNativePreview(server, connection, client, null, "removal invalidates preview");
             for (int i = 1; i < 9; i++) server.matrix.setInventorySlotContents(i, null);
-            assertResultPacket(connection, client, stack(902, 1), "shapeless preview");
+            assertNativePreview(server, connection, client, stack(902, 1), "shapeless preview");
             server.matrix.decrStackSize(0, 2);
-            assertResultPacket(connection, client, null, "consumed shapeless clears preview");
+            assertNativePreview(server, connection, client, null, "consumed shapeless clears preview");
             NetworkContainer inventory = new NetworkContainer(clientPlayer, new FixtureNode(2), -1);
             for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) {
                 Slot mapped = NEIIntegration.craftingSlot(client, 25 + col * 18, 6 + row * 18);
@@ -144,23 +146,223 @@ public final class TerminalRegression {
             check(client.inventorySlots.size() == 46, "NEI keeps virtual catalog out of real slots");
         } finally { recipes.remove(shaped); recipes.remove(shapeless); }
     }
-    private static void assertResultPacket(FixtureWorld.ResultPackets connection, NetworkContainer client, ItemStack expected, String label) throws Exception {
-        check(!connection.packets.isEmpty(), label + " sent packet");
-        Object packet = connection.packets.get(connection.packets.size() - 1);
-        int window, slot; ItemStack actual;
-        try {
-            window = ((Number) packet.getClass().getMethod("func_149175_c").invoke(packet)).intValue();
-            slot = ((Number) packet.getClass().getMethod("func_149173_d").invoke(packet)).intValue();
-            actual = (ItemStack) packet.getClass().getMethod("func_149174_e").invoke(packet);
-        } catch (NoSuchMethodException minecraft164) {
-            window = packet.getClass().getField("windowId").getInt(packet);
-            slot = packet.getClass().getField("itemSlot").getInt(packet);
-            actual = (ItemStack) packet.getClass().getField("myItemStack").get(packet);
+    private static void assertNativePreview(NetworkContainer server, FixtureWorld.ResultPackets connection, NetworkContainer client, ItemStack expected, String label) throws Exception {
+        server.detectAndSendChanges();
+        for (Object packet : connection.packets) {
+            int[] address = packetAddress(packet);
+            check(address[0] == 37 && address[1] > 0 && address[1] < 46, label + " native input/player window/slot");
+            client.putStackInSlot(address[1], ItemStack.copyItemStack(packetStack(packet)));
         }
-        check(window == 37 && slot == 0 && ItemStack.areItemStacksEqual(actual, expected), label + " authoritative window/slot/stack");
-        client.putStackInSlot(slot, actual);
-        check(ItemStack.areItemStacksEqual(client.getSlot(0).getStack(), expected), label + " visible inventory receives packet");
+        check(ItemStack.areItemStacksEqual(server.getSlot(0).getStack(), expected), label + " authoritative result");
+        check(ItemStack.areItemStacksEqual(client.getSlot(0).getStack(), expected), label + " preview from native input updates");
         connection.packets.clear();
+    }
+    private static int[] packetAddress(Object packet) throws Exception {
+        try { return new int[] {((Number) packet.getClass().getMethod("func_149175_c").invoke(packet)).intValue(), ((Number) packet.getClass().getMethod("func_149173_d").invoke(packet)).intValue()}; }
+        catch (NoSuchMethodException minecraft164) { return new int[] {packet.getClass().getField("windowId").getInt(packet), packet.getClass().getField("itemSlot").getInt(packet)}; }
+    }
+    private static ItemStack packetStack(Object packet) throws Exception {
+        try { return (ItemStack) packet.getClass().getMethod("func_149174_e").invoke(packet); }
+        catch (NoSuchMethodException minecraft164) { return (ItemStack) packet.getClass().getField("myItemStack").get(packet); }
+    }
+    private static FixtureNode craftingNode() {
+        FixtureNode node = new FixtureNode(1); node.network = new FixtureMaster(new NativeInventory(new FixtureChest(), -1, node)); return node;
+    }
+    private static void listen(NetworkContainer container, EntityPlayerMP player) throws Exception {
+        java.lang.reflect.Method add;
+        try { add = net.minecraft.inventory.Container.class.getMethod("addCraftingToCrafters", net.minecraft.inventory.ICrafting.class); }
+        catch (NoSuchMethodException minecraft189) { add = net.minecraft.inventory.Container.class.getMethod("onCraftGuiOpened", net.minecraft.inventory.ICrafting.class); }
+        add.invoke(container, player);
+    }
+    private static NetworkContainer observed(EntityPlayerMP player, FixtureNode node) throws Exception {
+        NetworkContainer container = new NetworkContainer(player, node, -1); container.windowId = 37; player.openContainer = container;
+        FixtureMaster network = node.network; node.network = null;
+        try { listen(container, player); } finally { node.network = network; }
+        ((FixtureWorld.ResultPackets) player.playerNetServerHandler).packets.clear(); return container;
+    }
+    private static int playerCount(EntityPlayer player) {
+        int count = 0; for (int i = 0; i < 36; i++) count += Stacks.INSTANCE.count(player.inventory.getStackInSlot(i)); return count;
+    }
+    private static void fillPlayer(EntityPlayer player, ItemStack stack) { for (int i = 0; i < 36; i++) player.inventory.setInventorySlotContents(i, ItemStack.copyItemStack(stack)); }
+    private static void craftingLifecycle() throws Exception {
+        java.util.List recipes = net.minecraft.item.crafting.CraftingManager.getInstance().getRecipeList();
+        ItemStack output = stack(911, 4);
+        Object shapeless = new net.minecraft.item.crafting.ShapelessRecipes(output, java.util.Arrays.asList(new ItemStack(item, 1)));
+        ItemStack[] shape = new ItemStack[9]; for (int i = 0; i < 9; i++) shape[i] = new ItemStack(item, 1);
+        Object shaped = new net.minecraft.item.crafting.ShapedRecipes(3, 3, shape, stack(912, 2));
+        Item milk;
+        try { milk = (Item) Class.forName("net.minecraft.init.Items").getField("milk_bucket").get(null); }
+        catch (ClassNotFoundException minecraft164) { milk = (Item) Item.class.getField("bucketMilk").get(null); }
+        Object containers = new net.minecraft.item.crafting.ShapelessRecipes(stack(913, 1), java.util.Arrays.asList(new ItemStack(milk, 1)));
+        recipes.add(0, shapeless); recipes.add(0, shaped); recipes.add(0, containers);
+        try {
+            EntityPlayerMP player = player(false); FixtureNode node = craftingNode(); NetworkContainer container = observed(player, node);
+            container.matrix.setInventorySlotContents(0, new ItemStack(item, 64));
+            container.slotClick(0, 0, 1, player);
+            check(playerCount(player) == 256 && container.matrix.getStackInSlot(0) == null && container.getSlot(0).getStack() == null, "shift crafts beyond one stack, consuming 64 operations for 256 outputs");
+            check(((FixturePlayer) player).dropped == 0, "shift delivers all outputs to inventory");
+            fillPlayer(player, stack(999, 64)); player.inventory.setInventorySlotContents(0, stack(911, 58));
+            container.matrix.setInventorySlotContents(0, new ItemStack(item, 5)); container.slotClick(0, 0, 1, player);
+            check(player.inventory.getStackInSlot(0).stackSize == 62 && container.matrix.getStackInSlot(0).stackSize == 4, "partial space accepts only whole four-item craft");
+            fillPlayer(player, stack(999, 64)); container.slotClick(0, 0, 1, player);
+            check(container.matrix.getStackInSlot(0).stackSize == 4 && playerCount(player) == 2304, "full inventory consumes nothing");
+            fillPlayer(player, null); container.matrix.setInventorySlotContents(0, new ItemStack(item, 3));
+            container.slotClick(0, 0, 0, player);
+            check(player.inventory.getItemStack().stackSize == 4 && container.matrix.getStackInSlot(0).stackSize == 2, "single shapeless native consumption");
+            player.inventory.setItemStack(null); container.slotClick(0, 0, 1, player);
+            check(container.matrix.getStackInSlot(0) == null && playerCount(player) == 8, "shift consumes remaining inputs");
+            for (int i = 0; i < 9; i++) container.matrix.setInventorySlotContents(i, new ItemStack(item, 1));
+            container.slotClick(0, 0, 0, player);
+            check(player.inventory.getItemStack().stackSize == 2, "single shaped output uses native crafting slot");
+            for (int i = 0; i < 9; i++) check(container.matrix.getStackInSlot(i) == null, "shaped consumes each grid cell once");
+            player.inventory.setItemStack(null); fillPlayer(player, null);
+            container.matrix.setInventorySlotContents(0, new ItemStack(milk, 1)); container.slotClick(0, 0, 1, player);
+            check(playerCount(player) + Stacks.INSTANCE.count(container.matrix.getStackInSlot(0)) == 2 && container.getSlot(0).getStack() == null, "native bucket remainder and one crafted output survive");
+            for (int i = 0; i < 9; i++) container.matrix.setInventorySlotContents(i, null);
+            fillPlayer(player, null); player.inventory.setInventorySlotContents(20, stack(921, 60));
+            container.matrix.setInventorySlotContents(0, stack(921, 9)); container.onContainerClosed(player);
+            check(player.inventory.getStackInSlot(20).stackSize == 64 && playerCount(player) == 69 && container.getSlot(0).getStack() == null, "close merges occupied stacks before empty slots");
+            check(container.matrix.getStackInSlot(0) == null, "close clears transient matrix");
+            container.onContainerClosed(player); check(playerCount(player) == 69, "repeated close cannot duplicate");
+            NetworkContainer reopened = observed(player, node); check(reopened.matrix.getStackInSlot(0) == null, "reopen starts empty");
+            fillPlayer(player, stack(999, 64)); reopened.matrix.setInventorySlotContents(3, stack(922, 7)); reopened.onContainerClosed(player);
+            check(((FixturePlayer) player).dropped == 7 && reopened.matrix.getStackInSlot(3) == null, "full inventory close drops exact remainder once");
+            EntityPlayerMP first = player(false), second = player(false); FixtureNode shared = craftingNode();
+            NetworkContainer one = observed(first, shared), two = observed(second, shared);
+            one.matrix.setInventorySlotContents(2, stack(931, 11)); two.matrix.setInventorySlotContents(2, stack(932, 13));
+            one.onContainerClosed(first);
+            check(playerCount(first) == 11 && playerCount(second) == 0 && two.matrix.getStackInSlot(2).stackSize == 13, "closing one viewer cannot take another viewer's inputs");
+            two.onContainerClosed(second); check(playerCount(second) == 13, "each viewer receives only its own items");
+            NBTTagCompound old = new NBTTagCompound(); TileNode.writeStacks(old, "matrix", new ItemStack[] {stack(941, 17)}); shared.readFromNBT(old);
+            fillPlayer(first, null); fillPlayer(second, null);
+            one = observed(first, shared); two = observed(second, shared);
+            check(playerCount(first) == 17 && playerCount(second) == 0 && one.matrix.getStackInSlot(0) == null && two.matrix.getStackInSlot(0) == null, "saved legacy inputs recovered once, outside isolated grids");
+            shared.recoverLegacyCrafting(first); check(playerCount(first) == 17, "legacy recovery is idempotent");
+            // Same slot writes as NEI's ordinary click transfer, followed by both craft modes.
+            for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) NEIIntegration.craftingSlot(one, 25 + col * 18, 6 + row * 18).putStack(new ItemStack(item, 3));
+            one.slotClick(0, 0, 0, first); check(first.inventory.getItemStack().stackSize == 2, "NEI-mapped shaped fill supports single craft");
+            first.inventory.setItemStack(null); one.slotClick(0, 0, 1, first);
+            check(one.matrix.getStackInSlot(0) == null && playerCount(first) == 21, "NEI-mapped fill supports repeated shift craft without network extraction");
+        } finally { recipes.remove(shapeless); recipes.remove(shaped); recipes.remove(containers); }
+    }
+    /** Native prediction and server click handling, including replies delayed past later predictions. */
+    private static void clickTransactions() throws Exception {
+        EntityPlayerMP serverPlayer = player(false), clientPlayer = player(true);
+        NetworkContainer server = observed(serverPlayer, craftingNode());
+        NetworkContainer client = new NetworkContainer(clientPlayer, new FixtureNode(1), -1);
+        client.windowId = server.windowId; clientPlayer.openContainer = client;
+        FixtureWorld.ResultPackets connection = (FixtureWorld.ResultPackets) serverPlayer.playerNetServerHandler;
+        Field owner = connection.getClass().getSuperclass().getDeclaredField("playerEntity");
+        owner.setAccessible(true); owner.set(connection, serverPlayer);
+        for (Field field : connection.getClass().getSuperclass().getDeclaredFields()) if (field.getType() == net.minecraft.util.IntHashMap.class) {
+            field.setAccessible(true); field.set(connection, new net.minecraft.util.IntHashMap());
+        }
+        serverPlayer.inventory.setInventorySlotContents(9, new ItemStack(item, 16));
+        clientPlayer.inventory.setInventorySlotContents(9, new ItemStack(item, 16));
+        final Field force = NetworkContainer.class.getDeclaredField("force"); force.setAccessible(true); force.setBoolean(server, false);
+        final NetworkContainer observedServer = server;
+        // Ignore browser-catalog transport; the native confirmation precedes detectAndSendChanges.
+        connection.afterSend = new Runnable() { public void run() {
+            try { force.setBoolean(observedServer, false); } catch (IllegalAccessException failure) { throw new AssertionError(failure); }
+        }};
+        Field lastUpdate = NetworkContainer.class.getDeclaredField("lastUpdate"); lastUpdate.setAccessible(true); lastUpdate.setLong(server, 0L);
+        server.detectAndSendChanges(); connection.packets.clear();
+        visitRecipeScreen(client);
+        queuedClicks(server, client, connection, new int[][] {{10, 0}, {1, 0}, {1, 1}, {2, 1}, {11, 0}, {1, 0}, {10, 0}});
+        check(serverPlayer.inventory.getStackInSlot(9).stackSize == 8, "consecutive clicks return eight inputs to physical inventory");
+        check(server.matrix.getStackInSlot(0) == null && server.matrix.getStackInSlot(1).stackSize == 1, "split/move leaves exact matrix remainder");
+        // NEI uses these ordinary pickup/right-place/return clicks. This is not a real NEI launch.
+        visitRecipeScreen(client);
+        queuedClicks(server, client, connection, new int[][] {{10, 0}, {1, 1}, {10, 0}});
+        java.util.List recipes = net.minecraft.item.crafting.CraftingManager.getInstance().getRecipeList();
+        Object recipe = new net.minecraft.item.crafting.ShapelessRecipes(stack(955, 2), java.util.Arrays.asList(new ItemStack(item, 1), new ItemStack(item, 1)));
+        recipes.add(0, recipe);
+        try {
+            server.onCraftMatrixChanged(server.matrix); client.onCraftMatrixChanged(client.matrix);
+            queuedClicks(server, client, connection, new int[][] {{0, 0}, {12, 0}});
+            check(server.matrix.getStackInSlot(0) == null && server.matrix.getStackInSlot(1) == null, "normal craft predicts native ingredient consumption");
+            queuedClicks(server, client, connection, new int[][] {{10, 0}, {1, 1}, {2, 1}, {1, 1}, {2, 1}, {10, 0}});
+            queuedClicks(server, client, connection, new int[][] {{0, 0, 1}});
+            check(playerCount(serverPlayer) == playerCount(clientPlayer), "shift craft predicts delivered outputs");
+            deleteHeldStack(server, client, connection);
+            visitRecipeScreen(client);
+            queuedClicks(server, client, connection, new int[][] {{10, 0}, {1, 1}, {10, 0}});
+            int count = playerCount(serverPlayer) + Stacks.INSTANCE.count(server.matrix.getStackInSlot(0));
+            client.onContainerClosed(clientPlayer); server.onContainerClosed(serverPlayer);
+            check(playerCount(serverPlayer) == count && server.matrix.getStackInSlot(0) == null, "close returns remaining physical input once");
+            NetworkContainer reopened = observed(serverPlayer, craftingNode());
+            check(reopened.matrix.getStackInSlot(0) == null && playerCount(serverPlayer) == count, "reopen retains inventory and starts empty");
+        } finally { recipes.remove(recipe); }
+    }
+    private static void visitRecipeScreen(NetworkContainer client) {
+        ItemStack[] before = new ItemStack[47];
+        for (int i = 0; i < 46; i++) before[i] = ItemStack.copyItemStack(client.getSlot(i).getStack());
+        before[46] = ItemStack.copyItemStack(client.player.inventory.getItemStack());
+        // Minecraft.displayGuiScreen invokes GuiContainer.onGuiClosed on entry to
+        // NEI's GuiRecipe. RecipeHandlerRef later reuses that same GUI/container.
+        client.onContainerClosed(client.player);
+        check(client.canInteractWith(client.player), "NEI recipe screen does not permanently close the client container");
+        for (int i = 0; i < 46; i++) check(ItemStack.areItemStacksEqual(before[i], client.getSlot(i).getStack()), "NEI navigation preserves client slot " + i);
+        check(ItemStack.areItemStacksEqual(before[46], client.player.inventory.getItemStack()), "NEI navigation preserves cursor");
+    }
+    private static void deleteHeldStack(NetworkContainer server, NetworkContainer client, FixtureWorld.ResultPackets connection) throws Exception {
+        queuedClicks(server, client, connection, new int[][] {{10, 0}});
+        check(client.player.inventory.getItemStack() != null, "pick up physical stack for NEI deletion");
+        visitRecipeScreen(client);
+        // HeldItemHandler -> NEIClientUtils.deleteHeldItem -> SET_SLOT(-999),
+        // authenticated on the server before NEIServerUtils.setSlotContents.
+        client.player.inventory.setItemStack(null);
+        if (Boolean.getBoolean("ssn.neiRegression")) {
+            Class.forName("codechicken.nei.NEIServerUtils").getMethod("setSlotContents", EntityPlayer.class, int.class, ItemStack.class, boolean.class)
+                .invoke(null, server.player, -999, null, true);
+            System.out.println("REAL_NEI_HELD_DELETE_PASSED: " + Class.forName("codechicken.nei.NEIServerUtils").getProtectionDomain().getCodeSource().getLocation());
+        } else server.player.inventory.setItemStack(null);
+        check(server.player.inventory.getItemStack() == null && client.player.inventory.getItemStack() == null, "NEI deletes the cursor on both sides");
+        queuedClicks(server, client, connection, new int[][] {{11, 0}, {10, 0}});
+    }
+    private static void queuedClicks(NetworkContainer server, NetworkContainer client, FixtureWorld.ResultPackets connection, int[][] moves) throws Exception {
+        Class<?> packetType; String handler;
+        try { packetType = Class.forName("net.minecraft.network.play.client.C0EPacketClickWindow"); handler = "processClickWindow"; }
+        catch (ClassNotFoundException minecraft164) { packetType = Class.forName("net.minecraft.network.packet.Packet102WindowClick"); handler = "handleWindowClick"; }
+        java.lang.reflect.Constructor<?> packet = packetType.getConstructor(int.class, int.class, int.class, int.class, ItemStack.class, short.class);
+        java.lang.reflect.Method receive = connection.getClass().getSuperclass().getMethod(handler, packetType);
+        List<Object> requests = new ArrayList<Object>();
+        List<ItemStack[]> predictions = new ArrayList<ItemStack[]>();
+        for (int[] move : moves) {
+            int mode = move.length == 3 ? move[2] : 0;
+            ItemStack predicted = client.slotClick(move[0], move[1], mode, client.player);
+            requests.add(packet.newInstance(server.windowId, move[0], move[1], mode, ItemStack.copyItemStack(predicted), (short) requests.size()));
+            ItemStack[] state = new ItemStack[47];
+            for (int i = 0; i < 46; i++) state[i] = ItemStack.copyItemStack(client.getSlot(i).getStack());
+            state[46] = ItemStack.copyItemStack(client.player.inventory.getItemStack()); predictions.add(state);
+        }
+        for (int operation = 0; operation < requests.size(); operation++) {
+            receive.invoke(connection, requests.get(operation));
+            ItemStack[] predicted = predictions.get(operation);
+            for (int i = 0; i < 46; i++) check(ItemStack.areItemStacksEqual(predicted[i], server.getSlot(i).getStack()), "native server matches prediction after operation " + operation + " slot " + i);
+            check(ItemStack.areItemStacksEqual(predicted[46], server.player.inventory.getItemStack()), "native cursor matches prediction after each operation");
+            for (Object reply : connection.packets) {
+                String name = reply.getClass().getSimpleName();
+                if (name.equals("S32PacketConfirmTransaction") || name.equals("Packet106Transaction")) {
+                    boolean accepted;
+                    try { accepted = (Boolean) reply.getClass().getMethod("func_148888_e").invoke(reply); }
+                    catch (NoSuchMethodException minecraft164) { accepted = reply.getClass().getField("accepted").getBoolean(reply); }
+                    check(accepted, "native transaction accepts predicted click");
+                } else if (name.equals("S2FPacketSetSlot") || name.equals("Packet103SetSlot")) {
+                    int[] address = packetAddress(reply);
+                    check(address[1] == 0, "accepted predicted clicks never echo stale real slots or cursor");
+                    check(address[0] == server.windowId || address[0] == -1, "native reply uses current window or cursor");
+                    if (address[0] == -1) client.player.inventory.setItemStack(ItemStack.copyItemStack(packetStack(reply)));
+                    else client.putStackInSlot(address[1], ItemStack.copyItemStack(packetStack(reply)));
+                } else throw new AssertionError("Unexpected correction during predicted clicks: " + name);
+            }
+            connection.packets.clear();
+        }
+        for (int i = 0; i < 46; i++) {
+            check(server.getSlot(i).slotNumber == i && client.getSlot(i).slotNumber == i, "stable native slot identity after burst");
+            check(ItemStack.areItemStacksEqual(server.getSlot(i).getStack(), client.getSlot(i).getStack()), "predicted client matches server slot " + i);
+        }
+        check(ItemStack.areItemStacksEqual(server.player.inventory.getItemStack(), client.player.inventory.getItemStack()), "predicted cursor matches server after burst");
     }
     private static void transfers() throws Exception {
         FixtureChest left = new FixtureChest(), right = new FixtureChest();
@@ -264,10 +466,12 @@ public final class TerminalRegression {
         ItemStack stack = new ItemStack(item, count, 0); NBTTagCompound tag = new NBTTagCompound(); tag.setInteger("terminalFixture", variant); stack.setTagCompound(tag); return stack;
     }
     private static EntityPlayerMP player(boolean client) throws Exception {
-        WorldServer world = allocate(WorldServer.class);
+        WorldServer world = allocate(FixtureWorld.class);
         Field remote = net.minecraft.world.World.class.getDeclaredField("isRemote"); remote.setAccessible(true); remote.setBoolean(world, client);
         EntityPlayerMP player = allocate(FixturePlayer.class); player.worldObj = world; player.inventory = new InventoryPlayer(player);
-        player.capabilities = new net.minecraft.entity.player.PlayerCapabilities(); return player;
+        player.capabilities = new net.minecraft.entity.player.PlayerCapabilities();
+        FixtureWorld.ResultPackets connection = allocate(FixtureWorld.ResultPackets.class); connection.packets = new ArrayList<Object>(); player.playerNetServerHandler = connection;
+        return player;
     }
     private static <T> T allocate(Class<T> type) throws Exception {
         Class<?> unsafe = Class.forName("sun.misc.Unsafe"); Field field = unsafe.getDeclaredField("theUnsafe"); field.setAccessible(true);
@@ -292,6 +496,9 @@ public final class TerminalRegression {
         int dropped;
         // Allocated without invoking this constructor; no server or connection exists.
         FixturePlayer() { super(null, null, null, null); }
+        public boolean isSpectator() { return false; }
+        @Override public void addStat(net.minecraft.stats.StatBase stat, int amount) {}
+        public net.minecraft.entity.item.EntityItem dropPlayerItem(ItemStack stack) { dropped += stack.stackSize; return null; }
         @Override public net.minecraft.entity.item.EntityItem dropPlayerItemWithRandomChoice(ItemStack stack, boolean scatter) { dropped += stack.stackSize; return null; }
     }
     private static final class FixtureChest extends TileEntityChest {

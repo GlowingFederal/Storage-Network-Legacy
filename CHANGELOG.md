@@ -54,3 +54,25 @@
 - Register optional client-side NEI crafting overlays with the actual nine input coordinates, including GTNH NEI on 1.7.10. Delegate ingredient selection and filling to NEI's native transfer handler after returning old inputs to physical player inventory through ordinary server-validated window clicks; do not extract remote catalog ingredients. Reject noncrafting screens, off-grid recipes, occupied cursors, and recipes that could consume the bound remote. Stop safely when the player inventory cannot accept old inputs.
 - Keep NEI absent-server support and avoid compile/runtime dependencies. Disable GTNH NEI's separate automatic craft loop for these server-controlled crafting containers; normal recipe filling and manual/Shift-click crafting remain available.
 - Extend the existing native terminal regressions with actual result-packet capture/replay, shaped/shapeless preview invalidation and consumption, and all nine NEI destination mappings.
+
+
+2026-10-18 14:23 � Correct crafting ownership, shift crafting, and slot synchronization
+
+- Give every Request Table and crafting remote container its own transient native crafting matrix. Closing returns inputs to player inventory, merges existing stacks before empty slots, drops exact overflow server-side, and clears the grid and output. Retain old saved table inputs for one-time recovery by the first server-side opener; unopened tables still drop those saved items when broken.
+- Repeat shift crafting through the native result-slot lifecycle until the selected output changes, inputs run out, or player inventory space cannot accept another complete output. Remove the one-output-stack cap and automatic ingredient extraction from remote storage; preserve native crafting hooks and version-specific remaining items.
+- Send changed real container slots through native slot packets even during vanilla's predicted-click listener suppression. Batch crafting mutations and publish the completed input, result, remainder, and player-inventory state together, independently of catalog refresh timing. Preserve the visible authoritative result and optional NEI filling integration.
+- Extend the existing native regressions with full crafting lifecycles, multi-output and inventory-capacity cases, bucket remainders, close/drop/reopen accounting, isolated simultaneous viewers, one-time saved-input recovery, and ingredient packet replay under native listener suppression.
+
+
+2026-10-18 22:40 — Restore native crafting click transactions
+
+- Remove the manual all-slot packet broadcaster from the 1.6.4, 1.7.10, and 1.8.9 crafting containers. Restore native listener snapshots and accepted-click suppression so delayed slot echoes cannot overwrite later client predictions or disrupt physical-inventory recipe filling.
+- Predict recipe previews, native ingredient/remainder consumption, and the bounded repeated Shift-click craft on both sides, with independent server recipe resolution and click validation. Preserve per-container transient matrices, close/overflow returns, legacy saved-input recovery, physical-inventory-only NEI filling, and the disabled GTNH automatic craft loop. No custom crafting slot packets remain.
+- Extend the existing native regression suite with consecutive pickup/place/split/return operations and NEI-style filling clicks through the actual server click packet handler, delayed responses, per-operation slot and cursor comparisons, normal/repeated crafting, and close/reopen accounting. Replace server-only packet replay assumptions with native listener and client preview checks.
+
+
+2026-10-19 16:54 — Preserve request containers across NEI recipe screens
+
+- Keep client crafting grids, result previews, cursors, and click handling alive when NEI temporarily replaces the request screen with a recipe page and later reuses that screen for Shift-click + recipe transfer. Client screen-close callbacks no longer permanently retire the container; genuine server window closure still returns ingredients once and drops overflow. Apply the lifecycle correction to 1.6.4, 1.7.10, and 1.8.9.
+- Preserve optional physical-inventory-only recipe filling, repeated manual Shift-click crafting, and the disabled automatic craft loop. Keep NEI's held-item deletion protocol and permission handling unchanged.
+- Extend the existing native regression suite with repeated recipe-screen navigation, retained inputs/results/cursors, deletion followed by validated clicks, and optional execution of real NEI server inventory mutation methods against supplied development JARs.

@@ -34,6 +34,14 @@ From the repository root on Windows:
 
 Use `./gradlew` on Linux/macOS. `buildAll` compiles, checks, and remaps/reobfuscates all three production JARs, then inspects their metadata, assets, bytecode, and remapping symbols. `testAll` runs each target's native `test` and `check` tasks, including the existing deterministic terminal regression checks. Individual checks are available as `test1_6_4`, `test1_7_10`, and `test1_8_9`. Root `build` includes both aggregates; root `check` runs `testAll`. Headless checks do not replace in-game or multiplayer testing.
 
+Optional NEI mutation checks can use matching NEI and CodeChickenCore development JARs without adding production dependencies:
+
+```powershell
+.\versions\1.7.10\gradlew.bat verifyTerminal "-PneiRegressionClasspath=<NEI dev JAR>;<CodeChickenCore dev JAR>"
+```
+
+Use a colon instead of a semicolon between JAR paths on Linux/macOS. These checks exercise NEI's server inventory mutations and container navigation state; they do not run its graphical input handlers or network authentication.
+
 Production outputs are `versions/<minecraft>/build/libs/SimpleStorageNetworkLegacy-<minecraft>-<version>.jar`. `version.properties` defines the public `mod_version` and the next internal `build_number`. `buildAll` uses one internal number across all targets and advances it only after every production archive passes verification. Rebuilding a public version replaces its filename. `pruneBuilds` optionally removes older production outputs while preserving development/source JARs.
 
 Open the repository root in your IDE. Portable IntelliJ tasks live in `.run/`; each version also has an independent native wrapper. Server launches prompt for development server settings and EULA acceptance as required by the target tooling.

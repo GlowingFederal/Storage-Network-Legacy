@@ -16,7 +16,9 @@ public class TileNode extends TileEntity implements IInventory {
     public Position master;
     public int direction = -1, priority, way = 2, sort = 1;
     public boolean whitelist, meta = true, ores, nbt, downwards;
-    public final ItemStack[] filters = new ItemStack[18], upgrades = new ItemStack[4], matrix = new ItemStack[9];
+    public final ItemStack[] filters = new ItemStack[18], upgrades = new ItemStack[4];
+    // Old table saves retain their inputs until they can be returned once.
+    private final ItemStack[] legacyMatrix = new ItemStack[9];
     public ItemStack operationStack;
     public int operationLimit, processCount, processStatus = 2, processIndex, processRemaining, processingInput = 1, processingOutput;
     public boolean operationSmaller = true, alwaysActive = true;
@@ -96,8 +98,19 @@ public class TileNode extends TileEntity implements IInventory {
         }
         return empty;
     }
+    public void recoverLegacyCrafting(net.minecraft.entity.player.EntityPlayer player) {
+        if (player.worldObj.isRemote) return;
+        for (int i = 0; i < legacyMatrix.length; i++) {
+            ItemStack stack = legacyMatrix[i];
+            if (Stacks.INSTANCE.empty(stack)) continue;
+            legacyMatrix[i] = null; markDirty();
+            ItemStack remainder = mrriegel.storagenetwork.legacy.core.Transfers.insert(
+                new NativeInventory(player.inventory, -1, player.inventory), stack, false, Stacks.INSTANCE);
+            if (!Stacks.INSTANCE.empty(remainder)) player.dropPlayerItemWithRandomChoice(remainder, false);
+        }
+    }
     public void dropContents() {
-        for (ItemStack[] contents : new ItemStack[][] {upgrades, matrix, recovery}) for (int i = 0; i < contents.length; i++) {
+        for (ItemStack[] contents : new ItemStack[][] {upgrades, legacyMatrix, recovery}) for (int i = 0; i < contents.length; i++) {
             StorageNetwork.drop(worldObj, position(), contents[i]); contents[i] = null;
         }
     }
@@ -154,7 +167,7 @@ public class TileNode extends TileEntity implements IInventory {
         tag.setInteger("direction", direction); tag.setInteger("prio", priority); tag.setInteger("way", way);
         tag.setBoolean("whitelist", whitelist); tag.setBoolean("meta", meta); tag.setBoolean("ores", ores); tag.setBoolean("nbt", nbt);
         tag.setInteger("sort", sort); tag.setBoolean("dir", downwards);
-        writeStacks(tag, "filters", filters); writeStacks(tag, "upgrades", upgrades); writeStacks(tag, "matrix", matrix); writeStacks(tag, "recovery", recovery);
+        writeStacks(tag, "filters", filters); writeStacks(tag, "upgrades", upgrades); writeStacks(tag, "matrix", legacyMatrix); writeStacks(tag, "recovery", recovery);
         tag.setInteger("operationLimit", operationLimit); tag.setBoolean("operationSmaller", operationSmaller);
         if (operationStack != null) { NBTTagCompound stack = new NBTTagCompound(); operationStack.writeToNBT(stack); tag.setTag("operationStack", stack); }
         tag.setInteger("sn_process_count", processCount); tag.setInteger("sn_process_status", processStatus);
@@ -169,7 +182,7 @@ public class TileNode extends TileEntity implements IInventory {
         priority = tag.getInteger("prio"); way = tag.hasKey("way") ? bound(tag.getInteger("way"), 0, 2, 2) : 2;
         whitelist = tag.getBoolean("whitelist"); meta = !tag.hasKey("meta") || tag.getBoolean("meta"); ores = tag.getBoolean("ores"); nbt = tag.getBoolean("nbt");
         sort = tag.hasKey("sort") ? bound(tag.getInteger("sort"), 0, 2, 1) : 1; downwards = tag.getBoolean("dir");
-        readStacks(tag, "filters", filters); readStacks(tag, "upgrades", upgrades); readStacks(tag, "matrix", matrix); readStacks(tag, "recovery", recovery);
+        readStacks(tag, "filters", filters); readStacks(tag, "upgrades", upgrades); readStacks(tag, "matrix", legacyMatrix); readStacks(tag, "recovery", recovery);
         for (int i = 0; i < upgrades.length; i++) if (upgrades[i] != null) upgrades[i].stackSize = 1;
         operationLimit = Math.max(0, tag.getInteger("operationLimit")); operationSmaller = !tag.hasKey("operationSmaller") || tag.getBoolean("operationSmaller");
         operationStack = tag.hasKey("operationStack") ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag("operationStack")) : null;
